@@ -1,6 +1,13 @@
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import fs from "node:fs";
+import dotenv from "dotenv";
+
+const envPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 
@@ -16,9 +23,10 @@ type Session = {
 
 function readSessions(): Session[] {
   try {
-    const output = execSync("openclaw sessions list --json", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-    const parsed = JSON.parse(output) as any[];
-    return parsed.map((s, i) => ({
+    const output = execSync("openclaw sessions --json --all-agents", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
+    const parsed = JSON.parse(output) as any;
+    const sessions = Array.isArray(parsed) ? parsed : (parsed.sessions ?? []);
+    return sessions.map((s: any, i: number) => ({
       sessionKey: s.sessionKey ?? s.id ?? `session-${i}`,
       agentKey: s.agentKey,
       label: s.label ?? s.name ?? `Session ${i + 1}`,
@@ -30,7 +38,7 @@ function readSessions(): Session[] {
   } catch {
     const file = process.argv[2] ?? path.resolve(process.cwd(), "openclaw-sessions.json");
     if (!existsSync(file)) {
-      throw new Error("Could not read sessions data. Provide JSON file path: npm run sync:sessions -- ./openclaw-sessions.json");
+      throw new Error("Could not read sessions data via `openclaw sessions --json`. Provide JSON file path: npm run sync:sessions -- ./openclaw-sessions.json");
     }
     return JSON.parse(readFileSync(file, "utf-8")) as Session[];
   }

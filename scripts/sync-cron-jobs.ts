@@ -1,6 +1,13 @@
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import fs from "node:fs";
+import dotenv from "dotenv";
+
+const envPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 
@@ -17,8 +24,9 @@ type CronJob = {
 function readJobs(): CronJob[] {
   try {
     const output = execSync("openclaw cron list --json", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-    const parsed = JSON.parse(output) as any[];
-    return parsed.map((j, i) => ({
+    const parsed = JSON.parse(output) as any;
+    const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs ?? []);
+    return jobs.map((j: any, i: number) => ({
       key: j.key ?? j.id ?? `job-${i}`,
       name: j.name ?? j.key ?? `Job ${i + 1}`,
       schedule: j.schedule ?? "* * * * *",

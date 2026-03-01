@@ -11,10 +11,12 @@
     "convex:codegen": "convex codegen",
     "sync:cron": "tsx scripts/sync-cron-jobs.ts",
     "sync:memory": "tsx scripts/sync-memories.ts",
-    "sync:sessions": "tsx scripts/sync-sessions.ts"
+    "sync:sessions": "tsx scripts/sync-sessions.ts",
+    "sync:all": "tsx scripts/sync-all.ts"
   },
   "dependencies": {
     "convex": "^1.17.4",
+    "dotenv": "^17.3.1",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1"

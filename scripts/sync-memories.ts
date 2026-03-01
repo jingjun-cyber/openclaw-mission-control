@@ -1,5 +1,12 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import fs from "node:fs";
+import dotenv from "dotenv";
+
+const envPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 
@@ -41,16 +48,37 @@ function parseDoc(file: string, root: string): MemoryDoc {
 }
 
 async function main() {
-  const root = process.argv[2] ? path.resolve(process.argv[2]) : path.resolve(process.cwd(), "..");
+  const defaultWorkspace = process.env.OPENCLAW_WORKSPACE || path.resolve(process.cwd(), "../../../../");
+  const workspaceRoot = process.argv[2] ? path.resolve(process.argv[2]) : defaultWorkspace;
+  const root = workspaceRoot;
   const convexUrl = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) throw new Error("Missing CONVEX_URL or NEXT_PUBLIC_CONVEX_URL");
 
-  const files = walkMarkdown(root);
+  const candidates = [
+    path.join(root, "MEMORY.md"),
+    path.join(root, "memory"),
+    path.join(root, "memory", "logs")
+  ];
+
+  const files: string[] = [];
+  for (const c of candidates) {
+    try {
+      const stat = statSync(c);
+      if (stat.isDirectory()) {
+        walkMarkdown(c, files);
+      } else if (c.endsWith(".md")) {
+        files.push(c);
+      }
+    } catch {
+      // ignore missing
+    }
+  }
+
   const docs = files.map((file) => parseDoc(file, root));
 
   const client = new ConvexHttpClient(convexUrl);
   const result = await client.mutation(api.memory.upsertDocs, { docs });
-  console.log(`Synced ${result.updated} memory documents from ${root}`);
+  console.log(`Synced ${result.updated} memory documents from ${root} (files=${files.length})`);
 }
 
 main().catch((err) => {
