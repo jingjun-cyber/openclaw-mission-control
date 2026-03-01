@@ -48,7 +48,7 @@ function MiniKanban({ labels, counts }: { labels: string[]; counts: number[] }) 
 }
 
 export default function HomePage() {
-  const summary = useQuery(api.stats.summary, {});
+  const summary = useQuery(api.stats.dashboard, {});
 
   return (
     <div className="space-y-6">
@@ -61,33 +61,56 @@ export default function HomePage() {
         <Card
           title="Tasks Board"
           href="/tasks"
-          subtitle={summary ? `${summary.tasks} tasks` : "Loading…"}
+          subtitle={summary ? `${summary.counts.tasks} tasks` : "Loading…"}
         >
-          <MiniKanban labels={["Backlog", "Doing", "Review"]} counts={[0, 0, 0]} />
+          <MiniKanban
+            labels={["Backlog", "Doing", "Review"]}
+            counts={
+              summary
+                ? [summary.tasksByStatus.Backlog, summary.tasksByStatus.Doing, summary.tasksByStatus.Review]
+                : [0, 0, 0]
+            }
+          />
           <p className="mt-3 text-xs text-slate-500">Track work from backlog to done.</p>
         </Card>
 
         <Card
           title="Content Pipeline"
           href="/pipeline"
-          subtitle={summary ? `${summary.pipeline} items` : "Loading…"}
+          subtitle={summary ? `${summary.counts.pipeline} items` : "Loading…"}
         >
-          <MiniKanban labels={["Idea", "Draft", "Publish"]} counts={[0, 0, 0]} />
+          <MiniKanban
+            labels={["Idea", "Draft", "Publish"]}
+            counts={
+              summary
+                ? [summary.pipelineByStage.Idea, summary.pipelineByStage.Draft, summary.pipelineByStage.Publish]
+                : [0, 0, 0]
+            }
+          />
           <p className="mt-3 text-xs text-slate-500">Ideas → scripts → assets → publish.</p>
         </Card>
 
         <Card
           title="Calendar"
           href="/calendar"
-          subtitle={summary ? `${summary.events} events` : "Loading…"}
+          subtitle={summary ? `${summary.counts.events} events` : "Loading…"}
         >
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 14 }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-6 rounded-md border border-slate-200 bg-white ${i === 8 ? "bg-blue-50 border-blue-200" : ""}`}
-              />
-            ))}
+          <div className="space-y-2">
+            {summary?.upcomingEvents?.length ? (
+              <div className="space-y-2">
+                {summary.upcomingEvents.slice(0, 3).map((e: any) => (
+                  <div key={e._id} className="rounded-lg border border-slate-200 bg-white p-2">
+                    <div className="text-xs font-semibold text-slate-800">{e.title}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-500">
+                      {e.date}
+                      {e.time ? ` ${e.time}` : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-500">No upcoming events</div>
+            )}
           </div>
           <p className="mt-3 text-xs text-slate-500">All scheduled tasks + cron jobs live here.</p>
         </Card>
@@ -95,16 +118,19 @@ export default function HomePage() {
         <Card
           title="Memory Archive"
           href="/memory"
-          subtitle={summary ? `${summary.docs} documents` : "Loading…"}
+          subtitle={summary ? `${summary.counts.docs} documents` : "Loading…"}
         >
-          <div className="rounded-lg border border-slate-200 bg-white p-2">
-            <div className="h-2 w-2/3 rounded bg-slate-200" />
-            <div className="mt-2 h-2 w-1/2 rounded bg-slate-200" />
-            <div className="mt-4 space-y-2">
-              <div className="h-2 w-full rounded bg-slate-100" />
-              <div className="h-2 w-11/12 rounded bg-slate-100" />
-              <div className="h-2 w-10/12 rounded bg-slate-100" />
-            </div>
+          <div className="space-y-2">
+            {summary?.recentDocs?.length ? (
+              summary.recentDocs.slice(0, 4).map((d: any) => (
+                <div key={d._id} className="rounded-lg border border-slate-200 bg-white p-2">
+                  <div className="line-clamp-1 text-xs font-medium text-slate-800">{d.title}</div>
+                  <div className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{d.path}</div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-500">No docs yet</div>
+            )}
           </div>
           <p className="mt-3 text-xs text-slate-500">Beautiful docs + fast search across everything.</p>
         </Card>
@@ -112,15 +138,19 @@ export default function HomePage() {
         <Card
           title="Team Overview"
           href="/team"
-          subtitle={summary ? `${summary.agents} agents` : "Loading…"}
+          subtitle={summary ? `${summary.counts.agents} agents • ${summary.recentSessions.length} recent sessions` : "Loading…"}
         >
-          <div className="flex -space-x-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-10 w-10 rounded-full border-2 border-white bg-gradient-to-br from-slate-200 to-slate-100"
-              />
-            ))}
+          <div className="space-y-2">
+            {summary?.recentSessions?.length ? (
+              summary.recentSessions.slice(0, 4).map((s: any) => (
+                <div key={s.sessionKey} className="rounded-lg border border-slate-200 bg-white p-2">
+                  <div className="line-clamp-1 text-xs font-medium text-slate-800">{s.label}</div>
+                  <div className="mt-0.5 text-[11px] text-slate-500">{s.status}</div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-500">No sessions yet</div>
+            )}
           </div>
           <p className="mt-3 text-xs text-slate-500">Roles, responsibilities, recent sessions.</p>
         </Card>
@@ -128,18 +158,27 @@ export default function HomePage() {
         <Card
           title="Virtual Office"
           href="/office"
-          subtitle={summary ? `${summary.desks} desks` : "Loading…"}
+          subtitle={summary ? `${summary.office.working} working • ${summary.counts.desks} desks` : "Loading…"}
         >
-          <div className="grid grid-cols-3 gap-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-lg border border-slate-200 bg-white p-2">
-                <div className="flex items-center justify-between">
-                  <div className="h-6 w-6 rounded-full bg-slate-200" />
-                  <div className={`h-2 w-2 rounded-full ${i % 3 === 0 ? "bg-green-500" : "bg-slate-300"}`} />
+          <div className="grid grid-cols-4 gap-2">
+            {summary ? (
+              [
+                { label: "Working", value: summary.office.working, color: "bg-green-500" },
+                { label: "Idle", value: summary.office.idle, color: "bg-slate-400" },
+                { label: "Away", value: summary.office.away, color: "bg-orange-500" },
+                { label: "Error", value: summary.office.error, color: "bg-red-500" }
+              ].map((b) => (
+                <div key={b.label} className="rounded-lg border border-slate-200 bg-white p-2">
+                  <div className="flex items-center justify-between">
+                    <div className={`h-2 w-2 rounded-full ${b.color}`} />
+                    <div className="text-sm font-semibold text-slate-900">{b.value}</div>
+                  </div>
+                  <div className="mt-2 text-[10px] font-medium text-slate-500">{b.label}</div>
                 </div>
-                <div className="mt-2 h-2 w-4/5 rounded bg-slate-100" />
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="col-span-4 rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-500">Loading…</div>
+            )}
           </div>
           <p className="mt-3 text-xs text-slate-500">Who’s working right now, at a glance.</p>
         </Card>
