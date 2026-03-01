@@ -19,7 +19,7 @@ export function AppNav() {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link href="/tasks" className="font-semibold tracking-tight">
+        <Link href="/" className="font-semibold tracking-tight">
           Mission Control
         </Link>
         <ul className="flex flex-wrap items-center gap-2 text-sm">
