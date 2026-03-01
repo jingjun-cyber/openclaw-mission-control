@@ -35,6 +35,8 @@ export default defineSchema({
     .index("by_updatedAt", ["updatedAt"]),
 
   contentItems: defineTable({
+    // projectKey partitions pipeline items (e.g. mission-control, adas-hmi-ux)
+    projectKey: v.optional(v.string()),
     title: v.string(),
     channel: v.string(),
     targetDate: v.string(),
@@ -46,6 +48,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number()
   })
+    .index("by_project", ["projectKey"])
     .index("by_stage", ["stage"])
     .index("by_targetDate", ["targetDate"]),
 

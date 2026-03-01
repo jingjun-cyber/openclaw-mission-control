@@ -12,6 +12,7 @@ import type * as calendar from "../calendar.js";
 import type * as content from "../content.js";
 import type * as memory from "../memory.js";
 import type * as office from "../office.js";
+import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
 import type * as tasks from "../tasks.js";
 import type * as team from "../team.js";
@@ -27,16 +28,33 @@ declare const fullApi: ApiFromModules<{
   content: typeof content;
   memory: typeof memory;
   office: typeof office;
+  seed: typeof seed;
   stats: typeof stats;
   tasks: typeof tasks;
   team: typeof team;
 }>;
 
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">
 >;
 
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
 export declare const internal: FilterApi<
   typeof fullApi,
   FunctionReference<any, "internal">

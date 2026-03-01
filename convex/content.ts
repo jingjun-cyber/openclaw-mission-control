@@ -11,11 +11,12 @@ const stage = v.union(
 );
 
 export const getBoard = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { projectKey: v.optional(v.string()) },
+  handler: async (ctx, args) => {
     const items = await ctx.db.query("contentItems").collect();
+    const filtered = args.projectKey ? items.filter((i: any) => (i.projectKey ?? "mission-control") === args.projectKey) : items;
     const withPreview = await Promise.all(
-      items.map(async (item) => {
+      filtered.map(async (item) => { 
         const latestAttachmentId = item.attachmentIds[item.attachmentIds.length - 1];
         if (!latestAttachmentId) return { ...item, previewUrl: null as string | null };
         const attachment = await ctx.db.get(latestAttachmentId);
@@ -48,10 +49,16 @@ export const getItem = query({
 });
 
 export const createItem = mutation({
-  args: { title: v.string(), owner: v.optional(v.string()), channel: v.optional(v.string()) },
+  args: {
+    title: v.string(),
+    owner: v.optional(v.string()),
+    channel: v.optional(v.string()),
+    projectKey: v.optional(v.string())
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
     return await ctx.db.insert("contentItems", {
+      projectKey: args.projectKey ?? "mission-control",
       title: args.title,
       channel: args.channel ?? "Blog",
       targetDate: "",
@@ -69,6 +76,7 @@ export const createItem = mutation({
 export const updateItem = mutation({
   args: {
     itemId: v.id("contentItems"),
+    projectKey: v.optional(v.string()),
     title: v.string(),
     channel: v.string(),
     targetDate: v.string(),

@@ -213,15 +213,42 @@ export const defaults = mutation({
       }
     }
 
-    // PIPELINE seed
+    // PIPELINE seed + migration
     const existingItems = await ctx.db.query("contentItems").collect();
-    if (existingItems.length === 0) {
+
+    // Backfill projectKey for older rows
+    for (const item of existingItems as any[]) {
+      if (!item.projectKey) {
+        await ctx.db.patch(item._id, { projectKey: "mission-control", updatedAt: Date.now() });
+      }
+    }
+
+    const hasMission = existingItems.some((i: any) => i.title === "Mission Control: roadmap & rules");
+    if (!hasMission) {
       await ctx.db.insert("contentItems", {
+        projectKey: "mission-control",
         title: "Mission Control: roadmap & rules",
         channel: "Internal",
         targetDate: "",
         owner: "MacBot",
         brief: "Define the rules: any scheduled task/cron must be visible in Calendar; keep memory synced.",
+        script: "",
+        stage: "Idea",
+        attachmentIds: [],
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    const hasAdas = existingItems.some((i: any) => i.title === "ADAS HMI: Status main screen" || i.projectKey === "adas-hmi-ux");
+    if (!hasAdas) {
+      await ctx.db.insert("contentItems", {
+        projectKey: "adas-hmi-ux",
+        title: "ADAS HMI: Status main screen",
+        channel: "Design",
+        targetDate: "",
+        owner: "Designer",
+        brief: "Key screen: 状态主界面。Reference: projects/adas-hmi-ux/ui/status-main.html",
         script: "",
         stage: "Idea",
         attachmentIds: [],

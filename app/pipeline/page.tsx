@@ -7,8 +7,16 @@ import { api } from "@/convex/_generated/api";
 import { Card, PageHeader } from "@/components/ui";
 import { STAGES, type Stage } from "@/lib/stages";
 
+const PROJECTS = [
+  { key: "mission-control", label: "Mission Control" },
+  { key: "adas-hmi-ux", label: "ADAS HMI" }
+] as const;
+
+type ProjectKey = (typeof PROJECTS)[number]["key"];
+
 export default function PipelinePage() {
-  const items = useQuery(api.content.getBoard, {});
+  const [projectKey, setProjectKey] = useState<ProjectKey>("mission-control");
+  const items = useQuery(api.content.getBoard, { projectKey });
   const createItem = useMutation(api.content.createItem);
   const moveStage = useMutation(api.content.moveStage);
   const [title, setTitle] = useState("");
@@ -29,14 +37,33 @@ export default function PipelinePage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Content Pipeline" subtitle="Idea to archive workflow" />
+      <PageHeader
+        title="Content Pipeline"
+        subtitle="Idea to archive workflow"
+        action={
+          <div className="flex items-center gap-2">
+            {PROJECTS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setProjectKey(p.key)}
+                className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                  projectKey === p.key ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
       <Card>
         <div className="grid gap-2 md:grid-cols-[2fr_1fr_auto]">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Item title" className="rounded border border-slate-300 px-3 py-2" />
           <input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Owner" className="rounded border border-slate-300 px-3 py-2" />
           <button className="rounded bg-blue-600 px-3 py-2 text-white" onClick={async () => {
             if (!title.trim()) return;
-            await createItem({ title: title.trim(), owner: owner.trim() || undefined });
+            await createItem({ title: title.trim(), owner: owner.trim() || undefined, projectKey });
             setTitle("");
             setOwner("");
           }}>Create</button>
