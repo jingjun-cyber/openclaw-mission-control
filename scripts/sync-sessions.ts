@@ -26,15 +26,26 @@ function readSessions(): Session[] {
     const output = execSync("openclaw sessions --json --all-agents", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
     const parsed = JSON.parse(output) as any;
     const sessions = Array.isArray(parsed) ? parsed : (parsed.sessions ?? []);
-    return sessions.map((s: any, i: number) => ({
-      sessionKey: s.sessionKey ?? s.id ?? `session-${i}`,
-      agentKey: s.agentKey,
-      label: s.label ?? s.name ?? `Session ${i + 1}`,
-      status: s.status ?? "unknown",
-      startedAt: s.startedAt ?? Date.now(),
-      endedAt: s.endedAt,
-      lastMessage: s.lastMessage
-    }));
+    return sessions.map((s: any, i: number) => {
+      const key = s.key ?? s.sessionKey ?? s.id ?? `session-${i}`;
+      const agentId = s.agentId;
+      const kind = s.kind ?? "";
+      const label = s.label ?? s.name ?? key;
+      const status = s.abortedLastRun ? "aborted" : (s.systemSent ? "active" : "unknown");
+
+      // Map OpenClaw main agent to our roster key
+      const agentKey = agentId === "main" ? "macbot" : undefined;
+
+      return {
+        sessionKey: key,
+        agentKey,
+        label,
+        status,
+        startedAt: s.updatedAt ?? Date.now(),
+        endedAt: undefined,
+        lastMessage: `${kind}${agentId ? ` • agent=${agentId}` : ""}`
+      };
+    });
   } catch {
     const file = process.argv[2] ?? path.resolve(process.cwd(), "openclaw-sessions.json");
     if (!existsSync(file)) {

@@ -202,7 +202,7 @@ export default function TeamPage() {
             {sessions?.map((session) => (
               <div key={session._id} className="rounded-lg border border-slate-200 bg-white p-3">
                 <p className="line-clamp-1 font-medium text-slate-900">{session.label}</p>
-                <p className="mt-1 text-xs text-slate-600">{session.status}</p>
+                <p className="mt-1 text-xs text-slate-600">{session.status}{session.lastMessage ? ` • ${session.lastMessage}` : ""}</p>
                 <p className="mt-1 text-[11px] text-slate-500">{new Date(session.startedAt).toLocaleString()}</p>
               </div>
             ))}

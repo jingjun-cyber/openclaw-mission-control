@@ -40,6 +40,7 @@ export default function OfficePage() {
   const createDesk = useMutation(api.office.createDesk);
   const initDesks = useMutation(api.office.initDefaultDesks);
   const setPresence = useMutation(api.office.setPresenceByCode);
+  const refreshFromSessions = useMutation(api.presence.refreshOfficeFromSessions);
 
   const [showAdmin, setShowAdmin] = useState(false);
   const [code, setCode] = useState("");
@@ -73,6 +74,13 @@ export default function OfficePage() {
               type="button"
             >
               Init desks
+            </button>
+            <button
+              className="rounded border border-slate-300 px-3 py-2 text-sm"
+              onClick={() => refreshFromSessions({ withinMinutes: 5 })}
+              type="button"
+            >
+              Auto refresh
             </button>
             <button
               className="rounded border border-slate-300 px-3 py-2 text-sm"
