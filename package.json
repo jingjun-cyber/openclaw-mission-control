@@ -13,7 +13,8 @@
     "sync:memory": "tsx scripts/sync-memories.ts",
     "sync:sessions": "tsx scripts/sync-sessions.ts",
     "sync:all": "tsx scripts/sync-all.ts",
-    "seed:defaults": "tsx scripts/seed-defaults.ts"
+    "seed:defaults": "tsx scripts/seed-defaults.ts",
+    "ops:adas-start": "tsx scripts/reconcile-adas-hmi.ts"
   },
   "dependencies": {
     "convex": "^1.17.4",
