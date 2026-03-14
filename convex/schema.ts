@@ -9,6 +9,14 @@ const taskStatus = v.union(
   v.literal("Blocked")
 );
 
+const taskStage = v.union(v.literal("planning"), v.literal("execution"));
+
+const planningStatus = v.union(
+  v.literal("active"),
+  v.literal("completed"),
+  v.literal("cancelled")
+);
+
 const contentStage = v.union(
   v.literal("Idea"),
   v.literal("Outline"),
@@ -25,12 +33,35 @@ export default defineSchema({
     title: v.string(),
     description: v.string(),
     status: taskStatus,
+    stage: v.optional(taskStage),
     assignee: v.optional(v.string()),
     dueDate: v.optional(v.string()),
     priority: v.optional(v.string()),
+    plan: v.optional(
+      v.object({
+        summary: v.string(),
+        steps: v.array(v.string()),
+        acceptanceCriteria: v.array(v.string()),
+        generatedAt: v.number()
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number()
   })
+    .index("by_status", ["status"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  planningSessions: defineTable({
+    taskId: v.id("tasks"),
+    status: planningStatus,
+    stage: taskStage,
+    questions: v.array(v.string()),
+    answers: v.array(v.string()),
+    currentIndex: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index("by_taskId", ["taskId"])
     .index("by_status", ["status"])
     .index("by_updatedAt", ["updatedAt"]),
 

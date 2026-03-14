@@ -12,6 +12,7 @@ import type * as calendar from "../calendar.js";
 import type * as content from "../content.js";
 import type * as memory from "../memory.js";
 import type * as office from "../office.js";
+import type * as planning from "../planning.js";
 import type * as presence from "../presence.js";
 import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   content: typeof content;
   memory: typeof memory;
   office: typeof office;
+  planning: typeof planning;
   presence: typeof presence;
   seed: typeof seed;
   stats: typeof stats;
