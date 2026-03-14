@@ -3,6 +3,7 @@
 Unified Next.js + Convex app for:
 
 - Tasks Board
+- AI Planning for Tasks
 - Content Pipeline
 - Calendar
 - Memory
@@ -18,6 +19,18 @@ Unified Next.js + Convex app for:
 - `/team`
 - `/office`
 - `/settings`
+
+## AI Planning Flow
+
+New tasks now enter a planning stage automatically.
+
+1. Create a task from `/tasks`.
+2. The app creates a linked `planningSession` in Convex and opens the task detail view.
+3. Use the `Planning` tab to answer one clarifying question at a time.
+4. You can `Skip`, `Stop planning`, `Regenerate questions`, or `Mark planning complete`.
+5. Once planning completes, the task stores a structured execution plan with bullet steps and acceptance criteria, and the task stage moves to `execution`.
+
+Planning session data lives in the `planningSessions` table and is linked to tasks through `taskId`.
 
 ## Setup
 
@@ -45,6 +58,18 @@ npm run convex:dev
 
 ```bash
 npm run dev
+```
+
+If you added the planning feature to an existing deployment, regenerate Convex types after the backend is running:
+
+```bash
+npx convex codegen
+```
+
+For existing task rows, run the backfill mutation once to create missing planning sessions and task stages:
+
+```ts
+api.planning.migrateExistingTasks
 ```
 
 ## Build

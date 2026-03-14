@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, PageHeader } from "@/components/ui";
-import { TASK_STATUSES, type TaskStatus } from "@/lib/tasks";
+import { TASK_STATUSES, type TaskStage, type TaskStatus } from "@/lib/tasks";
 
 function Badge({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">{children}</span>;
@@ -33,7 +34,13 @@ function PriorityPill({ priority }: { priority?: string }) {
   return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{p}</span>;
 }
 
+function StagePill({ stage }: { stage: TaskStage }) {
+  const cls = stage === "planning" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200";
+  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{stage}</span>;
+}
+
 export default function TasksPage() {
+  const router = useRouter();
   const tasks = useQuery(api.tasks.list, {});
   const createTask = useMutation(api.tasks.create);
   const moveTask = useMutation(api.tasks.move);
@@ -60,9 +67,10 @@ export default function TasksPage() {
 
   const onCreate = async () => {
     if (!title.trim()) return;
-    await createTask({ title: title.trim(), assignee: assignee.trim() || undefined });
+    const taskId = await createTask({ title: title.trim(), assignee: assignee.trim() || undefined });
     setTitle("");
     setAssignee("");
+    router.push(`/tasks/${taskId}`);
   };
 
   const shift = async (taskId: string, current: TaskStatus, dir: -1 | 1) => {
@@ -142,6 +150,7 @@ export default function TasksPage() {
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <StatusPill status={task.status as TaskStatus} />
+                        <StagePill stage={(task.stage ?? "execution") as TaskStage} />
                         <PriorityPill priority={task.priority} />
                       </div>
                     </div>

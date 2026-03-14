@@ -1,5 +1,27 @@
 import { mutation } from "./_generated/server";
 
+function createPlanningQuestions(title: string, description: string) {
+  const text = `${title}\n${description}`.toLowerCase();
+  const hasProductSignals = /(ui|ux|page|screen|component|design|tailwind|next\.js|app router)/.test(text);
+  const hasDataSignals = /(convex|schema|migration|data|api|query|mutation|model)/.test(text);
+
+  return Array.from(
+    new Set(
+      [
+        "What concrete outcome should be true when this task is done?",
+        "What constraints or non-goals should the implementation avoid?",
+        hasProductSignals
+          ? "Which user flow or screen state matters most for the first implementation?"
+          : "Which part of the system should be treated as the primary surface for this work?",
+        hasDataSignals
+          ? "What existing data model or API contract must remain compatible?"
+          : "What existing route, module, or behavior must remain unchanged?",
+        "How should success be verified once the work is complete?"
+      ].filter(Boolean)
+    )
+  ).slice(0, 5);
+}
+
 const defaultRoles = [
   {
     key: "orchestrator",
@@ -200,15 +222,57 @@ export const defaults = mutation({
       ];
 
       for (const t of tasks) {
-        await ctx.db.insert("tasks", {
+        const taskId = await ctx.db.insert("tasks", {
           title: t.title,
           description: t.description,
           status: t.status,
+          stage: "planning",
           assignee: undefined,
           dueDate: undefined,
           priority: t.priority,
+          plan: undefined,
           createdAt: now,
           updatedAt: now
+        });
+
+        await ctx.db.insert("planningSessions", {
+          taskId,
+          status: "active",
+          stage: "planning",
+          questions: createPlanningQuestions(t.title, t.description),
+          answers: [],
+          currentIndex: 0,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+    }
+
+    for (const task of await ctx.db.query("tasks").collect()) {
+      const existingPlanning = await ctx.db.query("planningSessions").withIndex("by_taskId", (q) => q.eq("taskId", task._id)).unique();
+
+      if (!task.stage) {
+        await ctx.db.patch(task._id, {
+          stage: existingPlanning?.status === "active" && task.status !== "Done" ? "planning" : "execution",
+          updatedAt: Date.now()
+        });
+      }
+
+      if (!existingPlanning && task.status !== "Done") {
+        const taskNow = Date.now();
+        await ctx.db.insert("planningSessions", {
+          taskId: task._id,
+          status: "active",
+          stage: "planning",
+          questions: createPlanningQuestions(task.title, task.description),
+          answers: [],
+          currentIndex: 0,
+          createdAt: taskNow,
+          updatedAt: taskNow
+        });
+        await ctx.db.patch(task._id, {
+          stage: "planning",
+          updatedAt: taskNow
         });
       }
     }

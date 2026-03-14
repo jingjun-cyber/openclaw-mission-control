@@ -9,6 +9,32 @@ const status = v.union(
   v.literal("Blocked")
 );
 
+function createQuestionPool(title: string, description: string) {
+  const text = `${title}\n${description}`.toLowerCase();
+  const hasProductSignals = /(ui|ux|page|screen|component|design|tailwind|next\.js|app router)/.test(text);
+  const hasDataSignals = /(convex|schema|migration|data|api|query|mutation|model)/.test(text);
+
+  return Array.from(
+    new Set(
+      [
+        "What concrete outcome should be true when this task is done?",
+        "What constraints or non-goals should the implementation avoid?",
+        hasProductSignals
+          ? "Which user flow or screen state matters most for the first implementation?"
+          : "Which part of the system should be treated as the primary surface for this work?",
+        hasDataSignals
+          ? "What existing data model or API contract must remain compatible?"
+          : "What existing route, module, or behavior must remain unchanged?",
+        "How should success be verified once the work is complete?"
+      ].filter(Boolean)
+    )
+  ).slice(0, 5);
+}
+
+async function getPlanningSessionByTaskId(ctx: { db: any }, taskId: any) {
+  return await ctx.db.query("planningSessions").withIndex("by_taskId", (q: any) => q.eq("taskId", taskId)).unique();
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -28,16 +54,34 @@ export const create = mutation({
   args: { title: v.string(), assignee: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const now = Date.now();
-    return await ctx.db.insert("tasks", {
+    const taskId = await ctx.db.insert("tasks", {
       title: args.title,
       description: "",
       status: "Backlog",
+      stage: "planning",
       assignee: args.assignee,
       dueDate: undefined,
       priority: "medium",
+      plan: undefined,
       createdAt: now,
       updatedAt: now
     });
+
+    const existingSession = await getPlanningSessionByTaskId(ctx, taskId);
+    if (!existingSession) {
+      await ctx.db.insert("planningSessions", {
+        taskId,
+        status: "active",
+        stage: "planning",
+        questions: createQuestionPool(args.title, ""),
+        answers: [],
+        currentIndex: 0,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    return taskId;
   }
 });
 
