@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "convex:dev": "convex dev",
+    "convex:dev": "convex dev --local --local-force-upgrade",
     "convex:codegen": "convex codegen",
     "sync:cron": "tsx scripts/sync-cron-jobs.ts",
     "sync:memory": "tsx scripts/sync-memories.ts",
