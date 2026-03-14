@@ -33,7 +33,7 @@ export default defineSchema({
     title: v.string(),
     description: v.string(),
     status: taskStatus,
-    stage: taskStage,
+    stage: v.optional(taskStage),
     assignee: v.optional(v.string()),
     dueDate: v.optional(v.string()),
     priority: v.optional(v.string()),
