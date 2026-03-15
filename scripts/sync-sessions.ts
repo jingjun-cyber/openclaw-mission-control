@@ -21,10 +21,34 @@ type Session = {
   lastMessage?: string;
 };
 
+function resolveOpenclawBin() {
+  const configured = process.env.OPENCLAW_BIN;
+  if (configured && existsSync(configured)) return configured;
+
+  // Cron often runs with a minimal PATH on macOS, so prefer known locations.
+  const candidates = ["/opt/homebrew/bin/openclaw", "/usr/local/bin/openclaw", "/usr/bin/openclaw"];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+
+  return "openclaw";
+}
+
 function readSessions(): Session[] {
   try {
-    const output = execSync("openclaw sessions --json --all-agents", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-    const parsed = JSON.parse(output) as any;
+    const openclawBin = resolveOpenclawBin();
+    const output = execSync(`${openclawBin} sessions --json --all-agents`, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+
+    const cleaned = output
+      .split(/\r?\n/)
+      .filter((line) => !line.startsWith("[plugins]"))
+      .join("\n")
+      .trim();
+
+    const parsed = JSON.parse(cleaned) as any;
     const sessions = Array.isArray(parsed) ? parsed : (parsed.sessions ?? []);
     return sessions.map((s: any, i: number) => {
       const key = s.key ?? s.sessionKey ?? s.id ?? `session-${i}`;
@@ -46,10 +70,15 @@ function readSessions(): Session[] {
         lastMessage: `${kind}${agentId ? ` • agent=${agentId}` : ""}`
       };
     });
-  } catch {
+  } catch (err) {
     const file = process.argv[2] ?? path.resolve(process.cwd(), "openclaw-sessions.json");
     if (!existsSync(file)) {
-      throw new Error("Could not read sessions data via `openclaw sessions --json`. Provide JSON file path: npm run sync:sessions -- ./openclaw-sessions.json");
+      const hint = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Could not read sessions data via openclaw CLI (often PATH issue under cron). ${hint}\n` +
+          `Provide JSON file path: npm run sync:sessions -- ./openclaw-sessions.json\n` +
+          `Or set OPENCLAW_BIN=/opt/homebrew/bin/openclaw in the cron environment.`
+      );
     }
     return JSON.parse(readFileSync(file, "utf-8")) as Session[];
   }

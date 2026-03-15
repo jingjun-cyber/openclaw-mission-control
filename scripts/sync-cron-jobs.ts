@@ -70,8 +70,13 @@ function normalizeStatus(job: any): string {
 
 function readJobs(): CronJob[] {
   try {
-    const output = execSync("openclaw cron list --json", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-    const parsed = JSON.parse(output) as any;
+    const output = execSync("openclaw cron list --json", { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+    const cleaned = output
+      .split(/\r?\n/)
+      .filter((line) => !line.startsWith("[plugins]"))
+      .join("\n")
+      .trim();
+    const parsed = JSON.parse(cleaned) as any;
     const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs ?? []);
     return jobs.map((j: any, i: number) => ({
       key: j.key ?? j.id ?? `job-${i}`,
