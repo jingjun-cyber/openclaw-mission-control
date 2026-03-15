@@ -15,6 +15,7 @@ type Step = { name: string; command: string; args: string[] };
 
 const steps: Step[] = [
   { name: "seed:defaults", command: "npm", args: ["run", "seed:defaults"] },
+  { name: "sync:agents", command: "npm", args: ["run", "sync:agents"] },
   { name: "sync:memory", command: "npm", args: ["run", "sync:memory"] },
   { name: "sync:sessions", command: "npm", args: ["run", "sync:sessions"] },
   { name: "sync:cron", command: "npm", args: ["run", "sync:cron"] }
