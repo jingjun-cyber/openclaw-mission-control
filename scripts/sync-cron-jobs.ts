@@ -68,10 +68,26 @@ function normalizeStatus(job: any): string {
   return "unknown";
 }
 
+function resolveOpenclawBin() {
+  const configured = process.env.OPENCLAW_BIN;
+  if (configured && existsSync(configured)) return configured;
+  const candidates = ["/opt/homebrew/bin/openclaw", "/usr/local/bin/openclaw", "/usr/bin/openclaw"];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return "openclaw";
+}
+
 function readJobs(): CronJob[] {
   try {
-    const output = execSync("openclaw cron list --json", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-    const parsed = JSON.parse(output) as any;
+    const openclawBin = resolveOpenclawBin();
+    const output = execSync(`${openclawBin} cron list --json`, { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+    const cleaned = output
+      .split(/\r?\n/)
+      .filter((line) => !line.startsWith("[plugins]"))
+      .join("\n")
+      .trim();
+    const parsed = JSON.parse(cleaned) as any;
     const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs ?? []);
     return jobs.map((j: any, i: number) => ({
       key: j.key ?? j.id ?? `job-${i}`,
@@ -82,10 +98,14 @@ function readJobs(): CronJob[] {
       lastRunAt: j.state?.lastRunAtMs ?? j.lastRunAt,
       nextRunAt: j.state?.nextRunAtMs ?? j.nextRunAt
     }));
-  } catch {
+  } catch (err) {
     const file = process.argv[2] ?? path.resolve(process.cwd(), "openclaw-cron.json");
     if (!existsSync(file)) {
-      throw new Error("Could not read cron data. Provide JSON file path: npm run sync:cron -- ./openclaw-cron.json");
+      const hint = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Could not read cron data via openclaw CLI. ${hint}\n` +
+          `Provide JSON file path: npm run sync:cron -- ./openclaw-cron.json`
+      );
     }
     const parsed = JSON.parse(readFileSync(file, "utf-8")) as CronJob[];
     return parsed;

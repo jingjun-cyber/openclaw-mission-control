@@ -78,6 +78,54 @@ export const updateAgent = mutation({
   }
 });
 
+export const upsertAgents = mutation({
+  args: {
+    agents: v.array(
+      v.object({
+        key: v.string(),
+        name: v.string(),
+        roleKey: v.string(),
+        description: v.string(),
+        typicalTasks: v.array(v.string()),
+        modelPreference: v.optional(v.string()),
+        enabled: v.boolean()
+      })
+    )
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const incomingKeys = new Set(args.agents.map((a) => a.key));
+
+    // Upsert incoming
+    let updated = 0;
+    for (const agent of args.agents) {
+      const existing = await ctx.db
+        .query("teamAgents")
+        .withIndex("by_key", (q) => q.eq("key", agent.key))
+        .unique();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, { ...agent, updatedAt: now });
+      } else {
+        await ctx.db.insert("teamAgents", { ...agent, createdAt: now, updatedAt: now });
+      }
+      updated += 1;
+    }
+
+    // Remove agents that no longer exist locally (keeps Team count == local configured agents)
+    const existingAll = await ctx.db.query("teamAgents").collect();
+    let removed = 0;
+    for (const a of existingAll) {
+      if (!incomingKeys.has(a.key)) {
+        await ctx.db.delete(a._id);
+        removed += 1;
+      }
+    }
+
+    return { updated, removed };
+  }
+});
+
 export const upsertSessions = mutation({
   args: {
     sessions: v.array(

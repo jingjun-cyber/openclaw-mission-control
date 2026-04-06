@@ -12,6 +12,7 @@
     "sync:cron": "tsx scripts/sync-cron-jobs.ts",
     "sync:memory": "tsx scripts/sync-memories.ts",
     "sync:sessions": "tsx scripts/sync-sessions.ts",
+    "sync:agents": "tsx scripts/sync-team-agents.ts",
     "sync:all": "tsx scripts/sync-all.ts",
     "seed:defaults": "tsx scripts/seed-defaults.ts",
     "ops:adas-start": "tsx scripts/reconcile-adas-hmi.ts"
