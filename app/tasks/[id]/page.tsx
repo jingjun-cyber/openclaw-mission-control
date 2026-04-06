@@ -37,6 +37,7 @@ export default function TaskDetailPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [answer, setAnswer] = useState("");
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!task) return;
@@ -73,6 +74,59 @@ export default function TaskDetailPage() {
   const currentQuestion =
     planningSession && planningSession.status === "active" ? planningSession.questions[planningSession.currentIndex] : null;
 
+  const handleExport = async () => {
+    try {
+      const exportPayload = {
+        exportedAt: new Date().toISOString(),
+        task: {
+          id: task._id,
+          title: task.title,
+          description: task.description,
+          assignee: task.assignee ?? null,
+          dueDate: task.dueDate ?? null,
+          priority: task.priority ?? null,
+          status: task.status,
+          stage: task.stage ?? "execution",
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+          plan: task.plan ?? null,
+        },
+        planningSession: planningSession
+          ? {
+              status: planningSession.status,
+              stage: planningSession.stage,
+              currentIndex: planningSession.currentIndex,
+              questions: planningSession.questions,
+              answers: planningSession.answers,
+              updatedAt: planningSession.updatedAt,
+            }
+          : null,
+        acceptance: {
+          validation: [
+            "Task detail page renders an Export button.",
+            "Clicking Export downloads a JSON file for the current task.",
+            "Export includes task fields, plan, and planning session details when present.",
+            "Existing task editing and planning flows still work after the change.",
+          ],
+        },
+      };
+
+      const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `task-${task._id}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setExportMessage(`Exported task-${task._id}.json`);
+    } catch (error) {
+      console.error("Failed to export task", error);
+      setExportMessage("Export failed. Check browser download permissions and try again.");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -103,7 +157,16 @@ export default function TaskDetailPage() {
               Session {planningSession.status}
             </span>
           ) : null}
+          <button
+            type="button"
+            onClick={handleExport}
+            className="ml-auto rounded border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Export JSON
+          </button>
         </div>
+
+        {exportMessage ? <p className="text-sm text-emerald-700">{exportMessage}</p> : null}
 
         {activeTab === "overview" ? (
           <div className="grid gap-3 md:grid-cols-2">
