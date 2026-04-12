@@ -17,9 +17,16 @@ const SafetyContext = createContext<SafetyState>({
 });
 
 export function SafetyProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<SafetyState>({ readOnly: false, mutationGuard: true, requireToken: false });
+  const [mounted, setMounted] = useState(false);
+  const [state, setState] = useState<SafetyState>({ 
+    readOnly: false, 
+    mutationGuard: true, 
+    requireToken: false 
+  });
 
   useEffect(() => {
+    setMounted(true);
+    
     let cancelled = false;
     const load = async () => {
       try {
@@ -31,9 +38,15 @@ export function SafetyProvider({ children }: { children: React.ReactNode }) {
       }
     };
     load();
+    
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const value = useMemo(() => state, [state]);
+  
+  // Always render children, even before mount
   return <SafetyContext.Provider value={value}>{children}</SafetyContext.Provider>;
 }
 
