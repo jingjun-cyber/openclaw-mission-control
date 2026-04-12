@@ -112,6 +112,13 @@ async function completePlanning(ctx: { db: any }, task: any, session: any, answe
   });
 }
 
+function isExecutionReady(task: any, session: any) {
+  const answeredCount = (session?.answers ?? []).filter((value: string) => value?.trim()).length;
+  const hasPlan = !!task?.plan;
+  const hasOwner = !!task?.assignee?.trim();
+  return hasPlan && answeredCount >= 2 && hasOwner;
+}
+
 export const getByTask = query({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
@@ -238,6 +245,73 @@ export const stop = mutation({
     });
 
     return session._id;
+  }
+});
+
+export const transitionToExecution = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    owner: v.optional(v.string()),
+    nextAction: v.string(),
+    notes: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    const [task, session] = await Promise.all([ctx.db.get(args.taskId), getSessionByTaskId(ctx, args.taskId)]);
+    if (!task) throw new Error("Task not found.");
+    if (!session) throw new Error("Planning session not found.");
+
+    const now = Date.now();
+    const owner = args.owner?.trim() || task.assignee;
+    const nextAction = args.nextAction.trim();
+    if (!nextAction) throw new Error("Next action is required.");
+
+    if (session.status === "active") {
+      await completePlanning(ctx, task, session, session.answers);
+    }
+
+    const refreshedTask = (await ctx.db.get(args.taskId)) ?? task;
+    const refreshedSession = (await getSessionByTaskId(ctx, args.taskId)) ?? session;
+    const ready = isExecutionReady({ ...refreshedTask, assignee: owner ?? refreshedTask.assignee }, refreshedSession);
+
+    await ctx.db.patch(args.taskId, {
+      stage: "execution",
+      assignee: owner,
+      executionTransition: {
+        ready,
+        owner,
+        nextAction,
+        transitionedAt: now,
+        transitionedBy: "MacBot",
+        notes: args.notes?.trim() || undefined
+      },
+      updatedAt: now
+    });
+
+    return args.taskId;
+  }
+});
+
+export const executionReadiness = query({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const [task, session] = await Promise.all([ctx.db.get(args.taskId), getSessionByTaskId(ctx, args.taskId)]);
+    if (!task || !session) return null;
+
+    const answeredCount = (session.answers ?? []).filter((value: string) => value?.trim()).length;
+    const blockers = [
+      task.plan ? null : "Complete planning to generate an execution plan.",
+      task.assignee?.trim() ? null : "Assign an owner before execution.",
+      answeredCount >= 2 ? null : "Capture at least two meaningful planning answers."
+    ].filter(Boolean);
+
+    return {
+      ready: blockers.length === 0,
+      blockers,
+      answeredCount,
+      hasPlan: !!task.plan,
+      hasOwner: !!task.assignee?.trim(),
+      transition: task.executionTransition ?? null
+    };
   }
 });
 

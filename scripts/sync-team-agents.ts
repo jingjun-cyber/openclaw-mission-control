@@ -37,12 +37,34 @@ function readAgents(): OpenClawAgent[] {
     stdio: ["ignore", "pipe", "pipe"]
   });
 
-  const cleaned = output
-    .split(/\r?\n/)
-    .filter((line) => !line.startsWith("[plugins]"))
-    .join("\n")
-    .trim();
+  const lines = output.split(/\r?\n/);
+  const startLine = lines.findIndex((line) => {
+    const trimmed = line.trim();
+    return trimmed === "[" || trimmed.startsWith("[{" );
+  });
 
+  if (startLine === -1) {
+    throw new Error(`Could not locate JSON array in openclaw output:\n${output}`);
+  }
+
+  const collected: string[] = [];
+  let depth = 0;
+  let started = false;
+
+  for (const line of lines.slice(startLine)) {
+    collected.push(line);
+    for (const ch of line) {
+      if (ch === "[") {
+        depth += 1;
+        started = true;
+      } else if (ch === "]") {
+        depth -= 1;
+      }
+    }
+    if (started && depth === 0) break;
+  }
+
+  const cleaned = collected.join("\n").trim();
   return JSON.parse(cleaned) as OpenClawAgent[];
 }
 
@@ -63,6 +85,12 @@ async function main() {
     roleKey: roleForAgent(a),
     description: "",
     typicalTasks: [],
+    capabilities: a.id === "main" ? ["routing", "ops", "coordination"] : ["execution", "specialized work"],
+    tools: ["openclaw", "convex", "nextjs"],
+    channels: ["telegram", "local"],
+    specializationHints: a.id === "main" ? ["primary operator", "task triage"] : ["implementation", "focused execution"],
+    workloadLevel: "medium",
+    workloadNotes: "Synced from configured agents",
     modelPreference: a.model,
     enabled: true
   }));

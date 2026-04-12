@@ -13,30 +13,20 @@ cd "$APP_DIR"
 # Build (stable mode)
 /opt/homebrew/bin/npm run build >>"$LOG_DIR/build.log" 2>&1
 
-# Start Convex local deployment (non-interactive safe)
-# `--local-force-upgrade` avoids the backend upgrade prompt that breaks under launchd (no TTY).
-./node_modules/.bin/convex dev --local --local-force-upgrade >>"$LOG_DIR/convex.log" 2>&1 &
-CONVEX_PID=$!
-
-# Wait for Convex
+# Wait for Convex managed by separate LaunchAgent
+READY=0
 for i in {1..80}; do
   if /usr/bin/nc -z 127.0.0.1 3210 >/dev/null 2>&1; then
+    READY=1
     break
   fi
   /bin/sleep 0.5
 done
 
-echo "[mission-control-daemon] convex pid=$CONVEX_PID" >>"$LOG_DIR/runner.log"
-
-cleanup() {
-  echo "[mission-control-daemon] stopping..." >>"$LOG_DIR/runner.log"
-  kill $CONVEX_PID >/dev/null 2>&1 || true
-}
-trap cleanup INT TERM
+if [[ "$READY" -ne 1 ]]; then
+  echo "[mission-control-daemon] convex unavailable on 127.0.0.1:3210" >>"$LOG_DIR/runner.log"
+  exit 1
+fi
 
 # Run Next in foreground so launchd supervises it
-/opt/homebrew/bin/npm run start -- -p 3000 >>"$LOG_DIR/next.log" 2>&1 || {
-  code=$?
-  cleanup
-  exit $code
-}
+exec /opt/homebrew/bin/npm run start -- -p 3000 >>"$LOG_DIR/next.log" 2>&1

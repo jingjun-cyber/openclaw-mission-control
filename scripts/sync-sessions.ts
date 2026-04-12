@@ -34,6 +34,37 @@ function resolveOpenclawBin() {
   return "openclaw";
 }
 
+function extractJsonValue(output: string): any {
+  const lines = output.split(/\r?\n/);
+  const startLine = lines.findIndex((line) => {
+    const trimmed = line.trim();
+    return trimmed === "[" || trimmed === "{" || trimmed.startsWith("[{") || trimmed.startsWith("{");
+  });
+
+  if (startLine === -1) {
+    throw new Error(`Could not locate JSON payload in openclaw output:\n${output}`);
+  }
+
+  const collected: string[] = [];
+  let depth = 0;
+  let started = false;
+
+  for (const line of lines.slice(startLine)) {
+    collected.push(line);
+    for (const ch of line) {
+      if (ch === "[" || ch === "{") {
+        depth += 1;
+        started = true;
+      } else if (ch === "]" || ch === "}") {
+        depth -= 1;
+      }
+    }
+    if (started && depth === 0) break;
+  }
+
+  return JSON.parse(collected.join("\n").trim());
+}
+
 function readSessions(): Session[] {
   try {
     const openclawBin = resolveOpenclawBin();
@@ -42,13 +73,7 @@ function readSessions(): Session[] {
       stdio: ["ignore", "pipe", "pipe"]
     });
 
-    const cleaned = output
-      .split(/\r?\n/)
-      .filter((line) => !line.startsWith("[plugins]"))
-      .join("\n")
-      .trim();
-
-    const parsed = JSON.parse(cleaned) as any;
+    const parsed = extractJsonValue(output) as any;
     const sessions = Array.isArray(parsed) ? parsed : (parsed.sessions ?? []);
     return sessions.map((s: any, i: number) => {
       const key = s.key ?? s.sessionKey ?? s.id ?? `session-${i}`;
