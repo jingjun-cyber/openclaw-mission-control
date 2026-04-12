@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, PageHeader } from "@/components/ui";
+import { useLocalToken } from "@/components/use-local-token";
 
 function SyncBadge({ status }: { status: string }) {
   const cls = status === "healthy"
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const summary = useQuery(api.stats.summary, {});
   const sync = useQuery(api.sync.dashboard, {});
   const approvals = useQuery(api.approvals.summary, {});
+  const localToken = useLocalToken();
   const [security, setSecurity] = useState<any>(null);
   const [connectors, setConnectors] = useState<any>(null);
   const [version, setVersion] = useState<any>(null);
@@ -142,6 +144,7 @@ export default function SettingsPage() {
             <div className="rounded border border-slate-200 p-3">Channel: {version.channel}</div>
             <div className="rounded border border-slate-200 p-3">Update: {version.update}</div>
             <div className="rounded border border-slate-200 p-3">Safety: {version.safety?.readOnly ? "read-only" : version.safety?.mutationGuard ? "guarded writes" : "writes enabled"}</div>
+            <div className="rounded border border-slate-200 p-3">Token: {version.safety?.requireToken ? (localToken.token ? "set" : "required") : "not enforced"}</div>
             <div className="text-slate-600">{version.guidance}</div>
             <div className="text-xs text-slate-500">Last checked: {version.checkedAt ? new Date(version.checkedAt).toLocaleString() : "unknown"}</div>
           </div>
@@ -188,6 +191,34 @@ export default function SettingsPage() {
         ) : (
           <p className="text-sm text-slate-600">Loading sync health...</p>
         )}
+      </Card>
+      <Card>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide">Local Token</h2>
+        <div className="space-y-2 text-sm text-slate-700">
+          <p>
+            {localToken.required
+              ? "A local token is required for protected operations. Set it below to enable writes."
+              : "Token authentication is not enforced for this deployment."}
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              placeholder="Enter local token"
+              value={localToken.token ?? ""}
+              onChange={(e) => localToken.saveToken(e.target.value)}
+              className="flex-1 rounded border border-slate-300 px-3 py-2"
+            />
+            <button
+              onClick={() => localToken.clearToken()}
+              className="rounded border border-slate-300 px-3 py-2"
+              type="button"
+            >
+              Clear
+            </button>
+          </div>
+          {localToken.token && localToken.required ? <p className="text-emerald-700">Token is set. Protected operations should be available.</p> : null}
+          {!localToken.token && localToken.required ? <p className="text-amber-700">No token set. Protected operations may be blocked.</p> : null}
+        </div>
       </Card>
       <Card>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide">Data Summary</h2>

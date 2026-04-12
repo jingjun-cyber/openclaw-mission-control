@@ -5,17 +5,19 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 type SafetyState = {
   readOnly: boolean;
   mutationGuard: boolean;
+  requireToken: boolean;
   checkedAt?: string;
   message?: string;
 };
 
 const SafetyContext = createContext<SafetyState>({
   readOnly: false,
-  mutationGuard: true
+  mutationGuard: true,
+  requireToken: false
 });
 
 export function SafetyProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<SafetyState>({ readOnly: false, mutationGuard: true });
+  const [state, setState] = useState<SafetyState>({ readOnly: false, mutationGuard: true, requireToken: false });
 
   useEffect(() => {
     let cancelled = false;
