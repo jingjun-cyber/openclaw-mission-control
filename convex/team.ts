@@ -12,8 +12,42 @@ export const listRoles = query({
 export const listAgents = query({
   args: {},
   handler: async (ctx) => {
-    const agents = await ctx.db.query("teamAgents").collect();
-    return agents.sort((a, b) => a.name.localeCompare(b.name));
+    const [agents, sessions] = await Promise.all([
+      ctx.db.query("teamAgents").collect(),
+      ctx.db.query("teamSessions").collect()
+    ]);
+
+    const sessionsByAgent = new Map<string, typeof sessions>();
+    for (const session of sessions) {
+      if (!session.agentKey) continue;
+      const list = sessionsByAgent.get(session.agentKey) ?? [];
+      list.push(session);
+      sessionsByAgent.set(session.agentKey, list);
+    }
+
+    return agents
+      .map((agent) => {
+        const agentSessions = (sessionsByAgent.get(agent.key) ?? []).sort((a, b) => b.startedAt - a.startedAt);
+        const activeSessions = agentSessions.filter((session) => session.status === "active" || !session.endedAt);
+        const recentSession = agentSessions[0] ?? null;
+        const activityState = !agent.enabled
+          ? "blocked"
+          : activeSessions.length > 0
+            ? "active"
+            : recentSession
+              ? "queued"
+              : "idle";
+
+        return {
+          ...agent,
+          activeSessions: activeSessions.length,
+          activityState,
+          currentWork: activeSessions[0]?.label ?? recentSession?.label ?? null,
+          recentOutput: activeSessions[0]?.lastMessage ?? recentSession?.lastMessage ?? null,
+          latestSessionAt: recentSession?.startedAt ?? null
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 });
 
@@ -22,6 +56,23 @@ export const listSessions = query({
   handler: async (ctx, args) => {
     const sessions = await ctx.db.query("teamSessions").collect();
     return sessions.sort((a, b) => b.startedAt - a.startedAt).slice(0, args.limit ?? 20);
+  }
+});
+
+export const runtimeFeed = query({
+  args: { limit: v.optional(v.number()), agentKey: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    let sessions = await ctx.db.query("teamSessions").collect();
+    if (args.agentKey) sessions = sessions.filter((session) => session.agentKey === args.agentKey);
+    return sessions
+      .sort((a, b) => Math.max(b.updatedAt ?? 0, b.startedAt ?? 0) - Math.max(a.updatedAt ?? 0, a.startedAt ?? 0))
+      .slice(0, args.limit ?? 20)
+      .map((session) => ({
+        ...session,
+        runtimeState: session.endedAt ? "ended" : session.status === "active" ? "live" : "recent",
+        runtimeSummary: session.lastMessage ?? session.label,
+        touchedAt: session.updatedAt ?? session.startedAt
+      }));
   }
 });
 
@@ -55,6 +106,12 @@ export const createAgent = mutation({
       roleKey: args.roleKey,
       description: "",
       typicalTasks: [],
+      capabilities: [],
+      tools: [],
+      channels: [],
+      specializationHints: [],
+      workloadLevel: "medium",
+      workloadNotes: "",
       enabled: true,
       createdAt: now,
       updatedAt: now
@@ -69,6 +126,12 @@ export const updateAgent = mutation({
     roleKey: v.string(),
     description: v.string(),
     typicalTasks: v.array(v.string()),
+    capabilities: v.array(v.string()),
+    tools: v.array(v.string()),
+    channels: v.array(v.string()),
+    specializationHints: v.array(v.string()),
+    workloadLevel: v.optional(v.string()),
+    workloadNotes: v.optional(v.string()),
     modelPreference: v.optional(v.string()),
     enabled: v.boolean()
   },
@@ -87,6 +150,12 @@ export const upsertAgents = mutation({
         roleKey: v.string(),
         description: v.string(),
         typicalTasks: v.array(v.string()),
+        capabilities: v.optional(v.array(v.string())),
+        tools: v.optional(v.array(v.string())),
+        channels: v.optional(v.array(v.string())),
+        specializationHints: v.optional(v.array(v.string())),
+        workloadLevel: v.optional(v.string()),
+        workloadNotes: v.optional(v.string()),
         modelPreference: v.optional(v.string()),
         enabled: v.boolean()
       })

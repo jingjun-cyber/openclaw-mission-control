@@ -59,6 +59,7 @@ export default function TaskDetailPage() {
   const artifacts = useQuery(api.tasks.listArtifacts, { taskId });
   const queueItem = useQuery(api.execution.getTaskQueue, { taskId });
   const handoffs = useQuery(api.execution.listTaskHandoffs, { taskId });
+  const runtimeFeed = useQuery(api.team.runtimeFeed, { limit: 8, agentKey: queueItem?.assignedAgentKey ?? task?.assignee ?? undefined });
   const updateTask = useMutation(api.tasks.update);
   const addArtifact = useMutation(api.tasks.addArtifact);
   const enqueueTask = useMutation(api.execution.enqueueTask);
@@ -649,6 +650,29 @@ export default function TaskDetailPage() {
                     </div>
                   ))}
                   {handoffs?.length === 0 ? <p className="text-sm text-slate-500">No handoff records yet.</p> : null}
+                </div>
+
+                <div className="pt-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">Runtime stream</div>
+                      <p className="text-xs text-slate-600">Recent runtime feed for the currently assigned agent.</p>
+                    </div>
+                    <div className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">{runtimeFeed?.length ?? 0} events</div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {runtimeFeed?.map((session: any) => (
+                      <div key={session._id} className="rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-medium text-slate-900">{session.label}</div>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">{session.runtimeState}</span>
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">{session.agentKey ?? "unknown agent"} • {new Date(session.touchedAt).toLocaleString()}</div>
+                        <div className="mt-2 text-sm text-slate-700 line-clamp-3">{session.runtimeSummary}</div>
+                      </div>
+                    ))}
+                    {runtimeFeed?.length === 0 ? <p className="text-sm text-slate-500">No runtime events for the current assignee yet.</p> : null}
+                  </div>
                 </div>
               </div>
             </div>

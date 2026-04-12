@@ -50,6 +50,7 @@ export default function TeamPage() {
   const roles = useQuery(api.team.listRoles, {});
   const agents = useQuery(api.team.listAgents, {});
   const sessions = useQuery(api.team.listSessions, { limit: 12 });
+  const runtimeFeed = useQuery(api.team.runtimeFeed, { limit: 16 });
   const queue = useQuery(api.execution.listQueue, {});
   const queueSummary = useQuery(api.execution.queueSummary, {});
   const assignTask = useMutation(api.execution.assignTask);
@@ -325,6 +326,24 @@ export default function TeamPage() {
             })}
 
             {agents?.length === 0 ? <p className="text-sm text-slate-500">No agents yet.</p> : null}
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Runtime Stream</h3>
+          <div className="space-y-2">
+            {runtimeFeed?.map((session: any) => (
+              <div key={`runtime-${session._id}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="line-clamp-1 font-medium text-slate-900">{session.label}</p>
+                  <Badge>{session.runtimeState}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">{session.agentKey ?? "unknown agent"} • {session.status}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-slate-500">{session.runtimeSummary}</p>
+                <p className="mt-1 text-[11px] text-slate-500">{new Date(session.touchedAt).toLocaleString()}</p>
+              </div>
+            ))}
+            {runtimeFeed?.length === 0 ? <p className="text-sm text-slate-500">No runtime stream yet.</p> : null}
           </div>
         </Card>
 
