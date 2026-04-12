@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, PageHeader } from "@/components/ui";
@@ -24,6 +24,28 @@ function Badge({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">{children}</span>;
 }
 
+function StateBadge({ state }: { state: string }) {
+  const cls =
+    state === "active"
+      ? "bg-emerald-100 text-emerald-700"
+      : state === "queued"
+        ? "bg-amber-100 text-amber-700"
+        : state === "blocked"
+          ? "bg-red-100 text-red-700"
+          : "bg-slate-100 text-slate-700";
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}>{state}</span>;
+}
+
+function PressureBadge({ level, score }: { level: string; score: number }) {
+  const cls =
+    level === "critical"
+      ? "bg-red-100 text-red-700"
+      : level === "warning"
+        ? "bg-amber-100 text-amber-700"
+        : "bg-emerald-100 text-emerald-700";
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}>{level} • {score}</span>;
+}
+
 export default function TeamPage() {
   const roles = useQuery(api.team.listRoles, {});
   const agents = useQuery(api.team.listAgents, {});
@@ -32,6 +54,9 @@ export default function TeamPage() {
   const createRole = useMutation(api.team.createRole);
   const createAgent = useMutation(api.team.createAgent);
 
+  const [pressure, setPressure] = useState<any>(null);
+  const [pressureError, setPressureError] = useState<string | null>(null);
+
   const [adminOpen, setAdminOpen] = useState(false);
   const [roleKey, setRoleKey] = useState("");
   const [roleName, setRoleName] = useState("");
@@ -39,11 +64,16 @@ export default function TeamPage() {
   const [agentName, setAgentName] = useState("");
   const [agentRoleKey, setAgentRoleKey] = useState("");
 
-  const roleByKey = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const r of roles ?? []) map.set(r.key, r);
-    return map;
-  }, [roles]);
+  const agentsByState = useMemo(() => {
+    const grouped = new Map<string, any[]>();
+    for (const agent of agents ?? []) {
+      const state = agent.activityState ?? "idle";
+      const list = grouped.get(state) ?? [];
+      list.push(agent);
+      grouped.set(state, list);
+    }
+    return grouped;
+  }, [agents]);
 
   const agentsByRole = useMemo(() => {
     const grouped = new Map<string, any[]>();
@@ -54,6 +84,33 @@ export default function TeamPage() {
     }
     return grouped;
   }, [agents]);
+
+  const stateCounts = {
+    active: agentsByState.get("active")?.length ?? 0,
+    queued: agentsByState.get("queued")?.length ?? 0,
+    idle: agentsByState.get("idle")?.length ?? 0,
+    blocked: agentsByState.get("blocked")?.length ?? 0
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/context-pressure", { cache: "no-store" });
+        const json = await res.json();
+        if (!cancelled) {
+          setPressure(json);
+          setPressureError(null);
+        }
+      } catch (err) {
+        if (!cancelled) setPressureError(err instanceof Error ? err.message : String(err));
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-5">
@@ -137,6 +194,20 @@ export default function TeamPage() {
         </div>
       ) : null}
 
+      <section className="grid gap-3 md:grid-cols-4">
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Active</div><div className="mt-2 text-2xl font-semibold text-emerald-700">{stateCounts.active}</div><div className="mt-1 text-xs text-slate-500">Agents doing live work right now</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Queued</div><div className="mt-2 text-2xl font-semibold text-amber-700">{stateCounts.queued}</div><div className="mt-1 text-xs text-slate-500">Agents with recent work but not currently active</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Idle</div><div className="mt-2 text-2xl font-semibold text-slate-700">{stateCounts.idle}</div><div className="mt-1 text-xs text-slate-500">Agents with no recent runtime signal</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Blocked</div><div className="mt-2 text-2xl font-semibold text-red-700">{stateCounts.blocked}</div><div className="mt-1 text-xs text-slate-500">Disabled or unavailable agents</div></Card>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Pressure critical</div><div className="mt-2 text-2xl font-semibold text-red-700">{pressure?.counts?.critical ?? 0}</div><div className="mt-1 text-xs text-slate-500">Active sessions near context or cost risk</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Pressure warning</div><div className="mt-2 text-2xl font-semibold text-amber-700">{pressure?.counts?.warning ?? 0}</div><div className="mt-1 text-xs text-slate-500">Sessions that should probably be summarized soon</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Pressure healthy</div><div className="mt-2 text-2xl font-semibold text-emerald-700">{pressure?.counts?.healthy ?? 0}</div><div className="mt-1 text-xs text-slate-500">Recently active sessions that still have headroom</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Telemetry refresh</div><div className="mt-2 text-sm font-semibold text-slate-900">{pressure?.checkedAt ? new Date(pressure.checkedAt).toLocaleString() : "pending"}</div><div className="mt-1 text-xs text-slate-500">Local session telemetry snapshot time</div></Card>
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-[280px_1fr_360px]">
         <Card>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Roles</h3>
@@ -152,6 +223,40 @@ export default function TeamPage() {
               </div>
             ))}
             {roles?.length === 0 ? <p className="text-sm text-slate-500">No roles yet.</p> : null}
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Staff States</h3>
+          <div className="space-y-3">
+            {[
+              ["active", "Active"],
+              ["queued", "Queued"],
+              ["idle", "Idle"],
+              ["blocked", "Blocked"]
+            ].map(([key, label]) => {
+              const list = agentsByState.get(key) ?? [];
+              return (
+                <div key={key} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900">{label}</span>
+                      <StateBadge state={key} />
+                    </div>
+                    <span className="text-xs text-slate-500">{list.length}</span>
+                  </div>
+                  <div className="mt-2 space-y-2 text-xs text-slate-600">
+                    {list.length ? list.map((agent) => (
+                      <div key={agent._id} className="rounded border border-slate-200 bg-white p-2">
+                        <div className="font-medium text-slate-900">{agent.name}</div>
+                        <div>{agent.currentWork ?? "No recent work context"}</div>
+                        {agent.recentOutput ? <div className="mt-1 line-clamp-2 text-slate-500">{agent.recentOutput}</div> : null}
+                      </div>
+                    )) : <div>No agents in this state.</div>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
 
@@ -179,10 +284,25 @@ export default function TeamPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-semibold text-slate-900">{agent.name}</p>
                             {!agent.enabled ? <span className="rounded bg-slate-200 px-2 py-0.5 text-[11px]">disabled</span> : null}
+                            <StateBadge state={agent.activityState ?? "idle"} />
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">workload: {agent.workloadLevel ?? "medium"}</span>
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">active: {agent.activeSessions ?? 0}</span>
                           </div>
                           <p className="mt-1 text-xs text-slate-600">{agent.key}</p>
                           {agent.modelPreference ? (
                             <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">model: {agent.modelPreference}</p>
+                          ) : null}
+                          {(agent.capabilities?.length ?? 0) > 0 ? (
+                            <p className="mt-1 line-clamp-2 text-[11px] text-slate-500">capabilities: {agent.capabilities.join(", ")}</p>
+                          ) : null}
+                          {(agent.channels?.length ?? 0) > 0 ? (
+                            <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">channels: {agent.channels.join(", ")}</p>
+                          ) : null}
+                          {agent.currentWork ? (
+                            <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">current: {agent.currentWork}</p>
+                          ) : null}
+                          {agent.recentOutput ? (
+                            <p className="mt-1 line-clamp-2 text-[11px] text-slate-500">output: {agent.recentOutput}</p>
                           ) : null}
                         </div>
                       </Link>
@@ -207,6 +327,31 @@ export default function TeamPage() {
               </div>
             ))}
             {sessions?.length === 0 ? <p className="text-sm text-slate-500">No sessions synced yet.</p> : null}
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Context Pressure</h3>
+          {pressureError ? <p className="text-sm text-red-700">Failed to load pressure telemetry: {pressureError}</p> : null}
+          <div className="space-y-3">
+            {pressure?.sessions?.map((session: any) => (
+              <div key={session.sessionId} className="rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="line-clamp-1 font-medium text-slate-900">{session.agent} • {session.model}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">{session.sourceHint} • {new Date(session.lastAt).toLocaleString()}</p>
+                  </div>
+                  <PressureBadge level={session.level} score={session.score} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                  {session.reasons?.map((reason: string) => <Badge key={reason}>{reason}</Badge>)}
+                </div>
+                <div className="mt-2 text-xs text-slate-600">{Math.round(session.totalTokens / 1000)}k tokens • {session.runs} usage turns • ${session.totalCost.toFixed(4)}</div>
+                {session.advice?.length ? <div className="mt-2 text-xs text-slate-500">Next: {session.advice[0]}</div> : null}
+              </div>
+            ))}
+            {!pressure && !pressureError ? <p className="text-sm text-slate-500">Loading pressure telemetry...</p> : null}
+            {pressure?.sessions?.length === 0 ? <p className="text-sm text-slate-500">No recently active sessions with telemetry.</p> : null}
           </div>
         </Card>
       </div>
