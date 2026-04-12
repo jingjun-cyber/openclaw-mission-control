@@ -11,6 +11,7 @@ const links = [
   { href: "/calendar", label: "Calendar" },
   { href: "/memory", label: "Memory" },
   { href: "/team", label: "Team" },
+  { href: "/collab", label: "Collab" },
   { href: "/office", label: "Office" },
   { href: "/settings", label: "Settings" },
   { href: "/sync", label: "Sync" },

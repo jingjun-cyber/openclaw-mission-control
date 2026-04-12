@@ -127,6 +127,11 @@ export default function OverviewPage() {
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.metrics.agents}</div>
             <div className="mt-1 text-xs text-slate-500">{summary.metrics.activeSessions} active sessions right now</div>
           </Link>
+          <Link href="/collab" className="rounded-xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100">
+            <div className="text-sm font-medium text-slate-900">Collaboration</div>
+            <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.metrics.activeSessions}</div>
+            <div className="mt-1 text-xs text-slate-500">Runtime, queue, and handoff overview</div>
+          </Link>
           <Link href="/sync" className="rounded-xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100">
             <div className="text-sm font-medium text-slate-900">Automation</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.metrics.cronJobs}</div>
