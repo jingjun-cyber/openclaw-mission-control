@@ -15,9 +15,18 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json()) as {
-    deskCode: string;
-    presence: "idle" | "working" | "away" | "error";
+    // Single update (backward compatible)
+    deskCode?: string;
+    presence?: "idle" | "working" | "away" | "error";
     note?: string;
+    source?: string;
+    // Bulk update
+    updates?: Array<{
+      deskCode: string;
+      presence: "idle" | "working" | "away" | "error";
+      note?: string;
+      source?: string;
+    }>;
   };
 
   const convexUrl = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -26,6 +35,29 @@ export async function POST(req: NextRequest) {
   }
 
   const client = new ConvexHttpClient(convexUrl);
-  await client.mutation(api.office.setPresenceByCode, body);
-  return NextResponse.json({ ok: true });
+
+  // Bulk mode
+  if (body.updates && Array.isArray(body.updates)) {
+    const result = await client.mutation(api.presence.bulkSetPresence, {
+      updates: body.updates.map((u) => ({
+        deskCode: u.deskCode,
+        presence: u.presence,
+        note: u.note,
+        source: u.source ?? "webhook"
+      }))
+    });
+    return NextResponse.json({ ok: true, mode: "bulk", ...result });
+  }
+
+  // Single mode (backward compatible)
+  if (body.deskCode && body.presence) {
+    await client.mutation(api.office.setPresenceByCode, {
+      deskCode: body.deskCode,
+      presence: body.presence,
+      note: body.note
+    });
+    return NextResponse.json({ ok: true, mode: "single" });
+  }
+
+  return NextResponse.json({ error: "Missing deskCode/presence or updates array" }, { status: 400 });
 }

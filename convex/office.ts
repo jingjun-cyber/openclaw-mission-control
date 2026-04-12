@@ -103,3 +103,12 @@ export const initDefaultDesks = mutation({
     return { created: created.length, desks: created };
   }
 });
+
+export const getRecentPresenceEvents = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 20;
+    const events = await ctx.db.query("officePresenceEvents").order("desc").take(limit);
+    return events;
+  }
+});

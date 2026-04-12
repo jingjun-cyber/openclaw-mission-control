@@ -37,6 +37,7 @@ function Avatar({ src, label }: { src?: string | null; label: string }) {
 
 export default function OfficePage() {
   const desks = useQuery(api.office.listDesks, {});
+  const recentEvents = useQuery(api.office.getRecentPresenceEvents, { limit: 50 });
   const createDesk = useMutation(api.office.createDesk);
   const initDesks = useMutation(api.office.initDefaultDesks);
   const setPresence = useMutation(api.office.setPresenceByCode);
@@ -47,6 +48,7 @@ export default function OfficePage() {
   const [label, setLabel] = useState("");
   const [row, setRow] = useState(1);
   const [col, setCol] = useState(1);
+  const [lastRefresh, setLastRefresh] = useState<string | null>(null);
 
   useEffect(() => {
     if (desks && desks.length === 0) {
@@ -61,6 +63,16 @@ export default function OfficePage() {
     const unassigned = list.filter((d) => !d.agentName).length;
     return { total: list.length, unassigned, ...counts };
   }, [desks]);
+
+  // Map desk code -> most recent event note (source)
+  const deskSource = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!recentEvents) return map;
+    for (const e of recentEvents) {
+      if (!map.has(e.deskCode)) map.set(e.deskCode, e.note ?? "manual");
+    }
+    return map;
+  }, [recentEvents]);
 
   const errorDesks = (desks ?? []).filter((desk) => desk.presence === "error");
   const awayDesks = (desks ?? []).filter((desk) => desk.presence === "away");
@@ -81,7 +93,10 @@ export default function OfficePage() {
             </button>
             <button
               className="rounded border border-slate-300 px-3 py-2 text-sm"
-              onClick={() => refreshFromSessions({ withinMinutes: 5 })}
+              onClick={async () => {
+                const result = await refreshFromSessions({ withinMinutes: 5 });
+                setLastRefresh(`Updated ${result.updated} desks from ${result.activeAgentKeys.length} active sessions`);
+              }}
               type="button"
             >
               Auto refresh
@@ -96,6 +111,12 @@ export default function OfficePage() {
           </div>
         }
       />
+
+      {lastRefresh ? (
+        <Card>
+          <div className="text-sm text-slate-600">{lastRefresh}</div>
+        </Card>
+      ) : null}
 
       <section className="grid gap-3 md:grid-cols-5">
         <Card><div className="text-xs uppercase tracking-wide text-slate-500">Total desks</div><div className="mt-2 text-2xl font-semibold text-slate-900">{stats.total}</div><div className="mt-1 text-xs text-slate-500">Tracked office seats</div></Card>
@@ -210,6 +231,7 @@ export default function OfficePage() {
                       <p className="font-semibold text-slate-900">{desk.agentName || "Unassigned"}</p>
                     </div>
                     <p className="text-xs text-slate-500">{desk.label} • {desk.code} • {desk.row},{desk.col}</p>
+                    <p className="text-[10px] text-slate-400">via {deskSource.get(desk.code) ?? "manual"}</p>
                   </div>
                 </div>
 
