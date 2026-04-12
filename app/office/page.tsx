@@ -58,8 +58,12 @@ export default function OfficePage() {
     const list = desks ?? [];
     const counts = { working: 0, idle: 0, away: 0, error: 0 } as Record<"working" | "idle" | "away" | "error", number>;
     for (const d of list) counts[d.presence] += 1;
-    return { total: list.length, ...counts };
+    const unassigned = list.filter((d) => !d.agentName).length;
+    return { total: list.length, unassigned, ...counts };
   }, [desks]);
+
+  const errorDesks = (desks ?? []).filter((desk) => desk.presence === "error");
+  const awayDesks = (desks ?? []).filter((desk) => desk.presence === "away");
 
   return (
     <div className="space-y-5">
@@ -92,6 +96,60 @@ export default function OfficePage() {
           </div>
         }
       />
+
+      <section className="grid gap-3 md:grid-cols-5">
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Total desks</div><div className="mt-2 text-2xl font-semibold text-slate-900">{stats.total}</div><div className="mt-1 text-xs text-slate-500">Tracked office seats</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Working</div><div className="mt-2 text-2xl font-semibold text-emerald-700">{stats.working}</div><div className="mt-1 text-xs text-slate-500">Active desks right now</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Away</div><div className="mt-2 text-2xl font-semibold text-amber-700">{stats.away}</div><div className="mt-1 text-xs text-slate-500">Temporarily away desks</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Errors</div><div className="mt-2 text-2xl font-semibold text-red-700">{stats.error}</div><div className="mt-1 text-xs text-slate-500">Desks needing operator review</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Unassigned</div><div className="mt-2 text-2xl font-semibold text-slate-900">{stats.unassigned}</div><div className="mt-1 text-xs text-slate-500">Seats without mapped agent</div></Card>
+      </section>
+
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">Presence guide</div>
+            <div className="mt-1 text-sm text-slate-600">Working means active now, idle means available but quiet, away means temporarily unavailable, error means presence needs attention.</div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">working</span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">idle</span>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">away</span>
+            <span className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-red-800">error</span>
+          </div>
+        </div>
+      </Card>
+
+      {(errorDesks.length > 0 || awayDesks.length > 0) ? (
+        <section className="grid gap-3 lg:grid-cols-2">
+          <Card>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Desks needing attention</h2>
+              <span className="text-xs text-slate-500">{errorDesks.length} error</span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {errorDesks.length ? errorDesks.map((desk) => (
+                <Link key={desk._id} href={`/office/${desk._id}`} className="block rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 hover:bg-red-100">
+                  {desk.code} • {desk.agentName || desk.label}
+                </Link>
+              )) : <p className="text-sm text-slate-500">No desks are currently in error.</p>}
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Away desks</h2>
+              <span className="text-xs text-slate-500">{awayDesks.length} away</span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {awayDesks.length ? awayDesks.map((desk) => (
+                <Link key={desk._id} href={`/office/${desk._id}`} className="block rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 hover:bg-amber-100">
+                  {desk.code} • {desk.agentName || desk.label}
+                </Link>
+              )) : <p className="text-sm text-slate-500">No desks are marked away.</p>}
+            </div>
+          </Card>
+        </section>
+      ) : null}
 
       {showAdmin ? (
         <Card>
