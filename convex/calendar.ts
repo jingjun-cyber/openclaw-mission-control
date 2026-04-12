@@ -10,8 +10,26 @@ export const listMonth = query({
   args: { year: v.number(), month: v.number() },
   handler: async (ctx, args) => {
     const prefix = monthPrefix(args.year, args.month);
-    const events = await ctx.db.query("calendarEvents").collect();
-    return events.filter((event) => event.date.startsWith(prefix)).sort((a, b) => a.date.localeCompare(b.date));
+    const [events, tasks] = await Promise.all([
+      ctx.db.query("calendarEvents").collect(),
+      ctx.db.query("tasks").collect()
+    ]);
+    const monthEvents = events.filter((event) => event.date.startsWith(prefix));
+    const taskMilestones = tasks
+      .filter((task) => task.dueDate && task.dueDate.startsWith(prefix))
+      .map((task) => ({
+        _id: `task-${task._id}`,
+        title: task.title,
+        description: task.description,
+        date: task.dueDate,
+        time: undefined,
+        type: "task-milestone",
+        linkedTaskId: task._id,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        source: "task"
+      }));
+    return [...monthEvents, ...taskMilestones].sort((a, b) => a.date.localeCompare(b.date));
   }
 });
 
@@ -38,7 +56,23 @@ export const listJobs = query({
 
 export const getEvent = query({
   args: { eventId: v.id("calendarEvents") },
-  handler: async (ctx, args) => await ctx.db.get(args.eventId)
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event) return null;
+    const linkedTask = event.linkedTaskId ? await ctx.db.get(event.linkedTaskId) : null;
+    return { ...event, linkedTask };
+  }
+});
+
+export const taskOptions = query({
+  args: {},
+  handler: async (ctx) => {
+    const tasks = await ctx.db.query("tasks").collect();
+    return tasks
+      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+      .slice(0, 100)
+      .map((task) => ({ _id: task._id, title: task.title, dueDate: task.dueDate, status: task.status }));
+  }
 });
 
 export const createEvent = mutation({
@@ -47,7 +81,8 @@ export const createEvent = mutation({
     description: v.optional(v.string()),
     date: v.string(),
     time: v.optional(v.string()),
-    type: v.optional(v.string())
+    type: v.optional(v.string()),
+    linkedTaskId: v.optional(v.id("tasks"))
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -57,6 +92,7 @@ export const createEvent = mutation({
       date: args.date,
       time: args.time,
       type: args.type,
+      linkedTaskId: args.linkedTaskId,
       createdAt: now,
       updatedAt: now
     });
@@ -70,7 +106,8 @@ export const updateEvent = mutation({
     description: v.string(),
     date: v.string(),
     time: v.optional(v.string()),
-    type: v.optional(v.string())
+    type: v.optional(v.string()),
+    linkedTaskId: v.optional(v.id("tasks"))
   },
   handler: async (ctx, args) => {
     const { eventId, ...fields } = args;

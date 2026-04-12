@@ -34,7 +34,7 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Calendar" subtitle="Month grid, upcoming events, and cron jobs" />
+      <PageHeader title="Calendar" subtitle="Month grid, task milestones, upcoming events, and cron jobs" />
       <Card>
         <div className="grid gap-2 md:grid-cols-[2fr_1fr_auto]">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Event title" className="rounded border border-slate-300 px-3 py-2" />
@@ -46,6 +46,13 @@ export default function CalendarPage() {
           }}>Create</button>
         </div>
       </Card>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Upcoming events</div><div className="mt-2 text-2xl font-semibold text-slate-900">{upcoming?.length ?? 0}</div><div className="mt-1 text-xs text-slate-500">Scheduled items ahead</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Cron jobs</div><div className="mt-2 text-2xl font-semibold text-slate-900">{jobs?.length ?? 0}</div><div className="mt-1 text-xs text-slate-500">Synced automation schedules</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Failing crons</div><div className="mt-2 text-2xl font-semibold text-red-700">{jobs?.filter((job) => job.status?.toLowerCase() === "error").length ?? 0}</div><div className="mt-1 text-xs text-slate-500">Need operator attention</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Task milestones</div><div className="mt-2 text-2xl font-semibold text-emerald-700">{monthEvents?.filter((event: any) => event.type === "task-milestone").length ?? 0}</div><div className="mt-1 text-xs text-slate-500">Tasks projected from due dates</div></Card>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>
@@ -66,8 +73,12 @@ export default function CalendarPage() {
                 <div key={key} className="h-24 overflow-hidden rounded border border-slate-200 bg-white p-1">
                   <div className="text-xs font-semibold">{day}</div>
                   <div className="mt-1 space-y-1">
-                    {events.slice(0, 2).map((event) => (
-                      <Link key={event._id} href={`/calendar/${event._id}`} className="block truncate rounded bg-slate-100 px-1 text-xs hover:bg-slate-200">{event.title}</Link>
+                    {events.slice(0, 2).map((event: any) => (
+                      event.type === "task-milestone" ? (
+                        <Link key={event._id} href={`/tasks/${event.linkedTaskId}`} className="block truncate rounded bg-emerald-100 px-1 text-xs text-emerald-900 hover:bg-emerald-200">{event.title}</Link>
+                      ) : (
+                        <Link key={event._id} href={`/calendar/${event._id}`} className="block truncate rounded bg-slate-100 px-1 text-xs hover:bg-slate-200">{event.title}</Link>
+                      )
                     ))}
                     {events.length > 2 ? <div className="text-[10px] text-slate-500">+{events.length - 2} more</div> : null}
                   </div>
@@ -92,19 +103,20 @@ export default function CalendarPage() {
           </Card>
 
           <Card>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide">Cron Jobs</h2>
-            <div className="max-h-72 overflow-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="text-slate-500"><th className="py-1">Name</th><th>Schedule</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                  {jobs?.map((job) => (
-                    <tr key={job._id} className="border-t border-slate-200"><td className="py-1">{job.name}</td><td>{job.schedule}</td><td>{job.status}</td></tr>
-                  ))}
-                  {jobs?.length === 0 ? <tr><td colSpan={3} className="py-2 text-slate-500">No jobs synced yet</td></tr> : null}
-                </tbody>
-              </table>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide">Cron Timeline</h2>
+            <div className="space-y-2">
+              {jobs?.map((job) => (
+                <div key={job._id} className={`rounded border p-3 text-xs ${job.status?.toLowerCase() === "error" ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-900">{job.name}</span>
+                    <span className={job.status?.toLowerCase() === "error" ? "text-red-700" : "text-slate-600"}>{job.status}</span>
+                  </div>
+                  <div className="mt-1 text-slate-600">{job.schedule}</div>
+                  <div className="mt-1 text-slate-500">Last run: {job.lastRunAt ? new Date(job.lastRunAt).toLocaleString() : "unknown"}</div>
+                  <div className="text-slate-500">Next run: {job.nextRunAt ? new Date(job.nextRunAt).toLocaleString() : "unknown"}</div>
+                </div>
+              ))}
+              {jobs?.length === 0 ? <p className="py-2 text-sm text-slate-500">No jobs synced yet</p> : null}
             </div>
           </Card>
         </div>

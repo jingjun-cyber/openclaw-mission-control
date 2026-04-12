@@ -45,6 +45,16 @@ export default defineSchema({
         generatedAt: v.number()
       })
     ),
+    executionTransition: v.optional(
+      v.object({
+        ready: v.boolean(),
+        owner: v.optional(v.string()),
+        nextAction: v.string(),
+        transitionedAt: v.number(),
+        transitionedBy: v.string(),
+        notes: v.optional(v.string())
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number()
   })
@@ -98,6 +108,7 @@ export default defineSchema({
     date: v.string(),
     time: v.optional(v.string()),
     type: v.optional(v.string()),
+    linkedTaskId: v.optional(v.id("tasks")),
     createdAt: v.number(),
     updatedAt: v.number()
   })
@@ -146,6 +157,12 @@ export default defineSchema({
     roleKey: v.string(),
     description: v.string(),
     typicalTasks: v.array(v.string()),
+    capabilities: v.optional(v.array(v.string())),
+    tools: v.optional(v.array(v.string())),
+    channels: v.optional(v.array(v.string())),
+    specializationHints: v.optional(v.array(v.string())),
+    workloadLevel: v.optional(v.string()),
+    workloadNotes: v.optional(v.string()),
     modelPreference: v.optional(v.string()),
     enabled: v.boolean(),
     createdAt: v.number(),
