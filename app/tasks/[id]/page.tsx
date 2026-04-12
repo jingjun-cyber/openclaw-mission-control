@@ -16,13 +16,35 @@ type Form = {
   status: TaskStatus;
 };
 
-type TabKey = "overview" | "planning";
+type TabKey = "overview" | "planning" | "evidence";
+
+type ArtifactKind = "note" | "link" | "snippet" | "output";
 
 type TransitionForm = {
   owner: string;
   nextAction: string;
   notes: string;
 };
+
+type ArtifactForm = {
+  kind: ArtifactKind;
+  title: string;
+  body: string;
+  link: string;
+  source: string;
+};
+
+function ArtifactBadge({ kind }: { kind: ArtifactKind }) {
+  const cls =
+    kind === "output"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : kind === "snippet"
+        ? "border-blue-200 bg-blue-50 text-blue-700"
+        : kind === "link"
+          ? "border-purple-200 bg-purple-50 text-purple-700"
+          : "border-slate-200 bg-slate-50 text-slate-700";
+  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{kind}</span>;
+}
 
 function StagePill({ stage }: { stage: TaskStage }) {
   const cls = stage === "planning" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -34,7 +56,9 @@ export default function TaskDetailPage() {
   const taskId = params.id as never;
   const task = useQuery(api.tasks.get, { taskId });
   const planningSession = useQuery(api.planning.getByTask, { taskId });
+  const artifacts = useQuery(api.tasks.listArtifacts, { taskId });
   const updateTask = useMutation(api.tasks.update);
+  const addArtifact = useMutation(api.tasks.addArtifact);
   const answerCurrent = useMutation(api.planning.answerCurrent);
   const skipCurrent = useMutation(api.planning.skipCurrent);
   const stopPlanning = useMutation(api.planning.stop);
@@ -47,6 +71,8 @@ export default function TaskDetailPage() {
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [transitionMessage, setTransitionMessage] = useState<string | null>(null);
   const [transitionForm, setTransitionForm] = useState<TransitionForm>({ owner: "", nextAction: "", notes: "" });
+  const [artifactMessage, setArtifactMessage] = useState<string | null>(null);
+  const [artifactForm, setArtifactForm] = useState<ArtifactForm>({ kind: "note", title: "", body: "", link: "", source: "" });
 
   useEffect(() => {
     if (!task) return;
@@ -202,6 +228,13 @@ export default function TaskDetailPage() {
           >
             Planning
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("evidence")}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${activeTab === "evidence" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
+          >
+            Evidence
+          </button>
           <StagePill stage={(task.stage ?? "execution") as TaskStage} />
           {planningSession ? (
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
@@ -235,6 +268,7 @@ export default function TaskDetailPage() {
 
         {exportMessage ? <p className="text-sm text-emerald-700">{exportMessage}</p> : null}
         {transitionMessage ? <p className="text-sm text-blue-700">{transitionMessage}</p> : null}
+        {artifactMessage ? <p className="text-sm text-purple-700">{artifactMessage}</p> : null}
 
         {activeTab === "overview" ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -246,7 +280,7 @@ export default function TaskDetailPage() {
             <label className="space-y-1 md:col-span-2"><span className="text-sm">Description</span><textarea value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})} className="h-48 w-full rounded border border-slate-300 px-3 py-2" /></label>
             <button className="rounded bg-blue-600 px-3 py-2 text-white md:col-span-2" onClick={() => updateTask({ taskId, title: form.title, description: form.description, assignee: form.assignee || undefined, dueDate: form.dueDate || undefined, priority: form.priority || undefined, status: form.status })}>Save</button>
           </div>
-        ) : (
+        ) : activeTab === "planning" ? (
           <div className="space-y-4">
             {planningSession === undefined ? <p className="text-sm text-slate-600">Loading planning session...</p> : null}
             {planningSession === null ? <p className="text-sm text-slate-600">No planning session found for this task.</p> : null}
@@ -444,6 +478,92 @@ export default function TaskDetailPage() {
                 </div>
               </>
             ) : null}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
+              <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Add evidence artifact</div>
+                  <p className="text-xs text-slate-600">Capture proof, output, links, and notes directly on the task.</p>
+                </div>
+                <label className="space-y-1">
+                  <span className="text-sm">Kind</span>
+                  <select value={artifactForm.kind} onChange={(e)=>setArtifactForm({...artifactForm, kind: e.target.value as ArtifactKind})} className="w-full rounded border border-slate-300 px-3 py-2">
+                    <option value="note">note</option>
+                    <option value="link">link</option>
+                    <option value="snippet">snippet</option>
+                    <option value="output">output</option>
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Title</span>
+                  <input value={artifactForm.title} onChange={(e)=>setArtifactForm({...artifactForm, title: e.target.value})} className="w-full rounded border border-slate-300 px-3 py-2" placeholder="Build output, PR link, decision note..." />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Body</span>
+                  <textarea value={artifactForm.body} onChange={(e)=>setArtifactForm({...artifactForm, body: e.target.value})} className="h-40 w-full rounded border border-slate-300 px-3 py-2" placeholder="Paste logs, summarize what changed, or capture evidence text" />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Link</span>
+                  <input value={artifactForm.link} onChange={(e)=>setArtifactForm({...artifactForm, link: e.target.value})} className="w-full rounded border border-slate-300 px-3 py-2" placeholder="Optional URL or file path" />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Source</span>
+                  <input value={artifactForm.source} onChange={(e)=>setArtifactForm({...artifactForm, source: e.target.value})} className="w-full rounded border border-slate-300 px-3 py-2" placeholder="terminal, github, mission-control, manual..." />
+                </label>
+                <button
+                  type="button"
+                  className="rounded bg-slate-900 px-3 py-2 text-white disabled:bg-slate-300"
+                  disabled={!artifactForm.title.trim() || !artifactForm.body.trim()}
+                  onClick={async () => {
+                    await addArtifact({
+                      taskId,
+                      kind: artifactForm.kind,
+                      title: artifactForm.title.trim(),
+                      body: artifactForm.body.trim(),
+                      link: artifactForm.link.trim() || undefined,
+                      source: artifactForm.source.trim() || undefined,
+                      createdBy: "MacBot"
+                    });
+                    setArtifactForm({ kind: "note", title: "", body: "", link: "", source: "" });
+                    setArtifactMessage("Evidence artifact captured.");
+                  }}
+                >
+                  Add artifact
+                </button>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Evidence thread</div>
+                    <p className="text-xs text-slate-600">Ordered execution artifacts for audits, handoffs, and review.</p>
+                  </div>
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">{artifacts?.length ?? 0} artifacts</div>
+                </div>
+                <div className="space-y-3">
+                  {artifacts?.map((artifact: any) => (
+                    <div key={artifact._id} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-slate-900">{artifact.title}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                            <span>{new Date(artifact.createdAt).toLocaleString()}</span>
+                            <span>{artifact.createdBy}</span>
+                            {artifact.source ? <span>source: {artifact.source}</span> : null}
+                          </div>
+                        </div>
+                        <ArtifactBadge kind={artifact.kind} />
+                      </div>
+                      {artifact.link ? <div className="mt-2 text-xs text-blue-700 break-all">{artifact.link}</div> : null}
+                      <pre className="mt-2 whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs text-slate-700">{artifact.body}</pre>
+                    </div>
+                  ))}
+                  {artifacts?.length === 0 ? <p className="text-sm text-slate-500">No evidence artifacts yet.</p> : null}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </Card>

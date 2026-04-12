@@ -33,6 +33,7 @@ const approvalStatus = v.union(
   v.literal("rejected"),
   v.literal("executed")
 );
+const artifactKind = v.union(v.literal("note"), v.literal("link"), v.literal("snippet"), v.literal("output"));
 
 export default defineSchema({
   tasks: defineTable({
@@ -231,5 +232,19 @@ export default defineSchema({
     updatedAt: v.number()
   })
     .index("by_status", ["status"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  taskArtifacts: defineTable({
+    taskId: v.id("tasks"),
+    kind: artifactKind,
+    title: v.string(),
+    body: v.string(),
+    link: v.optional(v.string()),
+    source: v.optional(v.string()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index("by_taskId", ["taskId"])
     .index("by_updatedAt", ["updatedAt"])
 });

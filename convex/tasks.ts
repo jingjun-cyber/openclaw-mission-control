@@ -50,6 +50,36 @@ export const get = query({
   }
 });
 
+export const listArtifacts = query({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const items = await ctx.db.query("taskArtifacts").withIndex("by_taskId", (q) => q.eq("taskId", args.taskId)).collect();
+    return items.sort((a, b) => b.createdAt - a.createdAt);
+  }
+});
+
+export const addArtifact = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    kind: v.union(v.literal("note"), v.literal("link"), v.literal("snippet"), v.literal("output")),
+    title: v.string(),
+    body: v.string(),
+    link: v.optional(v.string()),
+    source: v.optional(v.string()),
+    createdBy: v.string()
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const artifactId = await ctx.db.insert("taskArtifacts", {
+      ...args,
+      createdAt: now,
+      updatedAt: now
+    });
+    await ctx.db.patch(args.taskId, { updatedAt: now });
+    return artifactId;
+  }
+});
+
 export const create = mutation({
   args: { title: v.string(), assignee: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -105,5 +135,28 @@ export const move = mutation({
   args: { taskId: v.id("tasks"), status },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.taskId, { status: args.status, updatedAt: Date.now() });
+  }
+});
+
+export const enrich = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    description: v.string(),
+    priority: v.string(),
+    plan: v.object({
+      summary: v.string(),
+      steps: v.array(v.string()),
+      acceptanceCriteria: v.array(v.string()),
+      generatedAt: v.number()
+    })
+  },
+  handler: async (ctx, args) => {
+    const { taskId, description, priority, plan } = args;
+    await ctx.db.patch(taskId, {
+      description,
+      priority,
+      plan,
+      updatedAt: Date.now()
+    });
   }
 });
