@@ -26,6 +26,14 @@ const contentStage = v.union(
   v.literal("Archive")
 );
 
+const workflowState = v.union(
+  v.literal("new"),
+  v.literal("in_progress"),
+  v.literal("review"),
+  v.literal("approved"),
+  v.literal("blocked")
+);
+
 const presence = v.union(v.literal("idle"), v.literal("working"), v.literal("away"), v.literal("error"));
 const approvalStatus = v.union(
   v.literal("pending"),
@@ -93,6 +101,14 @@ export default defineSchema({
     brief: v.string(),
     script: v.string(),
     stage: contentStage,
+    workflowState: v.optional(workflowState),
+    checklist: v.optional(v.array(v.object({
+      id: v.string(),
+      label: v.string(),
+      done: v.boolean()
+    }))),
+    reviewer: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
     attachmentIds: v.array(v.id("attachments")),
     createdAt: v.number(),
     updatedAt: v.number()

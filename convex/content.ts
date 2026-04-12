@@ -10,6 +10,14 @@ const stage = v.union(
   v.literal("Archive")
 );
 
+const workflowState = v.union(
+  v.literal("new"),
+  v.literal("in_progress"),
+  v.literal("review"),
+  v.literal("approved"),
+  v.literal("blocked")
+);
+
 export const getBoard = query({
   args: { projectKey: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -66,6 +74,10 @@ export const createItem = mutation({
       brief: "",
       script: "",
       stage: "Idea",
+      workflowState: "new",
+      checklist: [],
+      reviewer: undefined,
+      approvedAt: undefined,
       attachmentIds: [],
       createdAt: now,
       updatedAt: now
@@ -94,7 +106,56 @@ export const updateItem = mutation({
 export const moveStage = mutation({
   args: { itemId: v.id("contentItems"), stage },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.itemId, { stage: args.stage, updatedAt: Date.now() });
+    await ctx.db.patch(args.itemId, {
+      stage: args.stage,
+      workflowState: "new",
+      updatedAt: Date.now()
+    });
+  }
+});
+
+export const setWorkflowState = mutation({
+  args: {
+    itemId: v.id("contentItems"),
+    workflowState
+  },
+  handler: async (ctx, args) => {
+    const updates: any = { workflowState: args.workflowState, updatedAt: Date.now() };
+    if (args.workflowState === "approved") {
+      updates.approvedAt = Date.now();
+    }
+    await ctx.db.patch(args.itemId, updates);
+  }
+});
+
+export const updateChecklist = mutation({
+  args: {
+    itemId: v.id("contentItems"),
+    checklist: v.array(v.object({
+      id: v.string(),
+      label: v.string(),
+      done: v.boolean()
+    }))
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.itemId, {
+      checklist: args.checklist,
+      updatedAt: Date.now()
+    });
+  }
+});
+
+export const assignReviewer = mutation({
+  args: {
+    itemId: v.id("contentItems"),
+    reviewer: v.string()
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.itemId, {
+      reviewer: args.reviewer,
+      workflowState: "review",
+      updatedAt: Date.now()
+    });
   }
 });
 
