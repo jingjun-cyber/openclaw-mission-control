@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Card, PageHeader } from "@/components/ui";
+import { Card, PageHeader, SafetyBanner } from "@/components/ui";
+import { useSafety } from "@/components/safety-provider";
 import { TASK_STATUSES, type TaskStage, type TaskStatus } from "@/lib/tasks";
 
 function Badge({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function StagePill({ stage }: { stage: TaskStage }) {
 
 export default function TasksPage() {
   const router = useRouter();
+  const safety = useSafety();
   const tasks = useQuery(api.tasks.list, {});
   const createTask = useMutation(api.tasks.create);
   const moveTask = useMutation(api.tasks.move);
@@ -87,6 +89,7 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-5">
+      <SafetyBanner />
       <PageHeader
         title="Tasks Board"
         subtitle={total ? `${total} tasks • search + quick move` : "Kanban board for work execution"}
@@ -116,11 +119,11 @@ export default function TasksPage() {
           />
           <button
             onClick={onCreate}
-            disabled={!title.trim()}
+            disabled={!title.trim() || safety.readOnly}
             className="rounded bg-blue-600 px-3 py-2 text-white disabled:bg-slate-300"
             type="button"
           >
-            Create
+            {safety.readOnly ? "Read-only" : "Create"}
           </button>
         </div>
         <div className="mt-3">
@@ -178,8 +181,8 @@ export default function TasksPage() {
                       <button
                         type="button"
                         onClick={() => shift(task._id, task.status as TaskStatus, -1)}
+                        disabled={safety.readOnly || TASK_STATUSES.indexOf(task.status as TaskStatus) === 0}
                         className="rounded border border-slate-300 px-2 py-1 text-xs"
-                        disabled={TASK_STATUSES.indexOf(task.status as TaskStatus) === 0}
                       >
                         Prev
                       </button>
@@ -189,8 +192,8 @@ export default function TasksPage() {
                       <button
                         type="button"
                         onClick={() => shift(task._id, task.status as TaskStatus, 1)}
+                        disabled={safety.readOnly || TASK_STATUSES.indexOf(task.status as TaskStatus) === TASK_STATUSES.length - 1}
                         className="rounded border border-slate-300 px-2 py-1 text-xs"
-                        disabled={TASK_STATUSES.indexOf(task.status as TaskStatus) === TASK_STATUSES.length - 1}
                       >
                         Next
                       </button>
@@ -198,6 +201,7 @@ export default function TasksPage() {
                         <button
                           type="button"
                           onClick={() => moveTask({ taskId: task._id as never, status: "Done" as any })}
+                          disabled={safety.readOnly}
                           className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-800"
                         >
                           Mark done

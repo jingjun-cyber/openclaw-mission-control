@@ -27,20 +27,22 @@ export default function SettingsPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const [securityRes, connectorsRes, versionRes] = await Promise.all([
+        const [securityRes, connectorsRes, versionRes, safetyRes] = await Promise.all([
           fetch("/api/security/status"),
           fetch("/api/connectors/status"),
-          fetch("/api/version/status")
+          fetch("/api/version/status"),
+          fetch("/api/safety/status")
         ]);
-        const [securityJson, connectorsJson, versionJson] = await Promise.all([
+        const [securityJson, connectorsJson, versionJson, safetyJson] = await Promise.all([
           securityRes.json(),
           connectorsRes.json(),
-          versionRes.json()
+          versionRes.json(),
+          safetyRes.json()
         ]);
         if (!cancelled) {
           setSecurity(securityJson);
           setConnectors(connectorsJson);
-          setVersion(versionJson);
+          setVersion({ ...versionJson, safety: safetyJson });
         }
       } catch {}
     };
@@ -139,6 +141,7 @@ export default function SettingsPage() {
             <div className="rounded border border-slate-200 p-3">OS: {version.os}</div>
             <div className="rounded border border-slate-200 p-3">Channel: {version.channel}</div>
             <div className="rounded border border-slate-200 p-3">Update: {version.update}</div>
+            <div className="rounded border border-slate-200 p-3">Safety: {version.safety?.readOnly ? "read-only" : version.safety?.mutationGuard ? "guarded writes" : "writes enabled"}</div>
             <div className="text-slate-600">{version.guidance}</div>
             <div className="text-xs text-slate-500">Last checked: {version.checkedAt ? new Date(version.checkedAt).toLocaleString() : "unknown"}</div>
           </div>

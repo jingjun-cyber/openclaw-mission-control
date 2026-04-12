@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useSafety } from "@/components/safety-provider";
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
@@ -21,5 +22,17 @@ export function DetailBackLink({ href, label }: { href: string; label: string })
     <Link className="text-sm text-blue-600 hover:underline" href={href}>
       ← {label}
     </Link>
+  );
+}
+
+export function SafetyBanner() {
+  const safety = useSafety();
+  if (!safety.readOnly && !safety.mutationGuard) return null;
+
+  return (
+    <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${safety.readOnly ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+      <div className="font-medium">{safety.readOnly ? "Read-only mode enabled" : "Mutation safety guard enabled"}</div>
+      <div className="mt-1">{safety.message ?? "Write operations are currently gated."}</div>
+    </div>
   );
 }
