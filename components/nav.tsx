@@ -15,6 +15,7 @@ const links = [
   { href: "/settings", label: "Settings" },
   { href: "/sync", label: "Sync" },
   { href: "/connectors", label: "Connectors" },
+  { href: "/usage", label: "Usage" },
   { href: "/incidents", label: "Incidents" }
 ];
 
