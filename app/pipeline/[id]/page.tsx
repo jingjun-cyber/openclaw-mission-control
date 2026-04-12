@@ -66,7 +66,7 @@ export default function ItemPage() {
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <div>
           <Link className="text-sm text-blue-600 hover:underline" href="/pipeline">← Back to pipeline</Link>
-          <h1 className="mt-1 text-2xl font-semibold">Edit Content Item</h1>
+          <h1 className="mt-1 text-2xl font-semibold">Edit Source-backed Document</h1>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={async () => {
@@ -87,6 +87,13 @@ export default function ItemPage() {
         </div>
       </header>
 
+      <section className="grid gap-3 md:grid-cols-4">
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Project</div><div className="mt-2 text-sm font-semibold text-slate-900">{item.projectKey ?? "mission-control"}</div></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Stage</div><div className="mt-2 text-sm font-semibold text-slate-900">{item.stage}</div></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Attachments</div><div className="mt-2 text-sm font-semibold text-slate-900">{item.attachments.length}</div></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Target date</div><div className="mt-2 text-sm font-semibold text-slate-900">{item.targetDate || "unset"}</div></div>
+      </section>
+
       <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
         <label className="space-y-1"><span className="text-sm font-medium">Title</span><input value={form.title} onChange={onChange("title")} className="w-full rounded border border-slate-300 px-3 py-2" /></label>
         <label className="space-y-1"><span className="text-sm font-medium">Owner</span><input value={form.owner} onChange={onChange("owner")} className="w-full rounded border border-slate-300 px-3 py-2" /></label>
@@ -102,7 +109,7 @@ export default function ItemPage() {
 
       <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Image Attachments</h2>
+          <h2 className="text-lg font-semibold">Source Attachments</h2>
           <label className="cursor-pointer rounded bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-700">Upload Image<input type="file" accept="image/*" onChange={onUpload} className="hidden" /></label>
         </div>
 

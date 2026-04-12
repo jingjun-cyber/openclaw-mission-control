@@ -18,11 +18,11 @@ export const getBoard = query({
     const withPreview = await Promise.all(
       filtered.map(async (item) => { 
         const latestAttachmentId = item.attachmentIds[item.attachmentIds.length - 1];
-        if (!latestAttachmentId) return { ...item, previewUrl: null as string | null };
+        if (!latestAttachmentId) return { ...item, previewUrl: null as string | null, attachmentCount: 0, sourceScope: item.projectKey ?? "mission-control" };
         const attachment = await ctx.db.get(latestAttachmentId);
-        if (!attachment) return { ...item, previewUrl: null as string | null };
+        if (!attachment) return { ...item, previewUrl: null as string | null, attachmentCount: item.attachmentIds.length, sourceScope: item.projectKey ?? "mission-control" };
         const previewUrl = await ctx.storage.getUrl(attachment.storageId);
-        return { ...item, previewUrl };
+        return { ...item, previewUrl, attachmentCount: item.attachmentIds.length, sourceScope: item.projectKey ?? "mission-control" };
       })
     );
     return withPreview.sort((a, b) => b.updatedAt - a.updatedAt);
