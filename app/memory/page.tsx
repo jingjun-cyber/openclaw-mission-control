@@ -22,12 +22,23 @@ export default function MemoryPage() {
   const [query, setQuery] = useState("");
   const [path, setPath] = useState("");
   const [title, setTitle] = useState("");
+  const [view, setView] = useState<"all" | "stale" | "empty">("all");
 
   const search = useQuery(api.memory.search, { query });
   const health = useQuery(api.memory.health, {});
   const createDoc = useMutation(api.memory.create);
 
-  const docs = useMemo(() => search ?? [], [search]);
+  const docs = useMemo(() => {
+    const list = search ?? [];
+    if (view === "stale") {
+      const weekMs = 1000 * 60 * 60 * 24 * 7;
+      return list.filter((doc) => Date.now() - (doc.sourceUpdatedAt ?? doc.updatedAt ?? 0) > weekMs);
+    }
+    if (view === "empty") {
+      return list.filter((doc) => !doc.content?.trim().length);
+    }
+    return list;
+  }, [search, view]);
   const freshnessTone = health?.freshnessState === "fresh" ? "emerald" : health?.freshnessState === "mixed" ? "amber" : "red";
   const searchTone = health?.searchReady ? "emerald" : "red";
 
@@ -66,9 +77,12 @@ export default function MemoryPage() {
       </Card>
 
       <Card>
-        <div className="grid gap-2 md:grid-cols-[2fr_1fr]">
+        <div className="grid gap-3 md:grid-cols-[2fr_auto_auto_auto_1fr] md:items-center">
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search content..." className="rounded border border-slate-300 px-3 py-2" />
-          <span className="self-center text-xs text-slate-500">{docs.length} results</span>
+          <button type="button" onClick={() => setView("all")} className={`rounded px-3 py-2 text-sm ${view === "all" ? "bg-slate-900 text-white" : "border border-slate-300"}`}>All</button>
+          <button type="button" onClick={() => setView("stale")} className={`rounded px-3 py-2 text-sm ${view === "stale" ? "bg-amber-600 text-white" : "border border-slate-300"}`}>Stale</button>
+          <button type="button" onClick={() => setView("empty")} className={`rounded px-3 py-2 text-sm ${view === "empty" ? "bg-red-600 text-white" : "border border-slate-300"}`}>Empty</button>
+          <span className="justify-self-end self-center text-xs text-slate-500">{docs.length} results</span>
         </div>
       </Card>
 
@@ -89,8 +103,17 @@ export default function MemoryPage() {
         <div className="space-y-2">
           {docs.map((doc) => (
             <Link key={doc._id} href={`/memory/${doc._id}`} className="block rounded border border-slate-200 p-3 hover:bg-slate-50">
-              <p className="font-medium">{doc.title}</p>
-              <p className="text-xs text-slate-600">{doc.path}</p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium">{doc.title}</p>
+                  <p className="text-xs text-slate-600">{doc.path}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-500">{doc.content?.trim() ? doc.content.slice(0, 160) : "No content yet"}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 text-[11px]">
+                  <HealthPill label={doc.content?.trim() ? "searchable" : "empty"} tone={doc.content?.trim() ? "emerald" : "red"} />
+                  <span className="text-slate-400">{doc.updatedAt ? new Date(doc.updatedAt).toLocaleDateString() : "unknown"}</span>
+                </div>
+              </div>
             </Link>
           ))}
           {docs.length === 0 ? <p className="text-sm text-slate-500">No documents found.</p> : null}
