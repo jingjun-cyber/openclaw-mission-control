@@ -50,6 +50,10 @@ export default function TeamPage() {
   const roles = useQuery(api.team.listRoles, {});
   const agents = useQuery(api.team.listAgents, {});
   const sessions = useQuery(api.team.listSessions, { limit: 12 });
+  const queue = useQuery(api.execution.listQueue, {});
+  const queueSummary = useQuery(api.execution.queueSummary, {});
+  const assignTask = useMutation(api.execution.assignTask);
+  const startTask = useMutation(api.execution.startTask);
 
   const createRole = useMutation(api.team.createRole);
   const createAgent = useMutation(api.team.createAgent);
@@ -208,6 +212,14 @@ export default function TeamPage() {
         <Card><div className="text-xs uppercase tracking-wide text-slate-500">Telemetry refresh</div><div className="mt-2 text-sm font-semibold text-slate-900">{pressure?.checkedAt ? new Date(pressure.checkedAt).toLocaleString() : "pending"}</div><div className="mt-1 text-xs text-slate-500">Local session telemetry snapshot time</div></Card>
       </section>
 
+      <section className="grid gap-3 md:grid-cols-5">
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Queue queued</div><div className="mt-2 text-2xl font-semibold text-slate-900">{queueSummary?.queued ?? 0}</div><div className="mt-1 text-xs text-slate-500">Waiting for agent assignment</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Queue assigned</div><div className="mt-2 text-2xl font-semibold text-blue-700">{queueSummary?.assigned ?? 0}</div><div className="mt-1 text-xs text-slate-500">Assigned but not started</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">In progress</div><div className="mt-2 text-2xl font-semibold text-emerald-700">{queueSummary?.inProgress ?? 0}</div><div className="mt-1 text-xs text-slate-500">Actively executing</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Handoffs</div><div className="mt-2 text-2xl font-semibold text-purple-700">{queueSummary?.handoff ?? 0}</div><div className="mt-1 text-xs text-slate-500">Needs transfer or follow-up</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Blocked queue</div><div className="mt-2 text-2xl font-semibold text-red-700">{queueSummary?.blocked ?? 0}</div><div className="mt-1 text-xs text-slate-500">Execution items requiring intervention</div></Card>
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-[280px_1fr_360px]">
         <Card>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Roles</h3>
@@ -327,6 +339,32 @@ export default function TeamPage() {
               </div>
             ))}
             {sessions?.length === 0 ? <p className="text-sm text-slate-500">No sessions synced yet.</p> : null}
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Execution Queue</h3>
+          <div className="space-y-3">
+            {queue?.slice(0, 8).map((item: any) => (
+              <div key={item._id} className="rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-slate-900">{item.task?.title ?? "Unknown task"}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">{item.status} • assigned: {item.assignedAgentKey ?? "unassigned"} • requested by {item.requestedBy}</p>
+                  </div>
+                  <Badge>{item.priority ?? "normal"}</Badge>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {agents?.slice(0, 4).map((agent) => (
+                    <button key={`${item._id}-${agent.key}`} type="button" className="rounded border border-slate-300 px-2 py-1 text-xs" onClick={() => assignTask({ taskId: item.taskId, agentKey: agent.key })}>{agent.key}</button>
+                  ))}
+                  <button type="button" className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-800" onClick={() => startTask({ taskId: item.taskId, agentKey: item.assignedAgentKey ?? "main" })}>Start</button>
+                  {item.task?._id ? <Link href={`/tasks/${item.task._id}`} className="rounded border border-slate-300 px-2 py-1 text-xs">Open</Link> : null}
+                </div>
+                {item.handoffNote ? <div className="mt-2 text-xs text-slate-600">handoff: {item.handoffNote}</div> : null}
+              </div>
+            ))}
+            {queue?.length === 0 ? <p className="text-sm text-slate-500">No queued execution items.</p> : null}
           </div>
         </Card>
 

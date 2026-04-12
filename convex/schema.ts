@@ -34,6 +34,7 @@ const approvalStatus = v.union(
   v.literal("executed")
 );
 const artifactKind = v.union(v.literal("note"), v.literal("link"), v.literal("snippet"), v.literal("output"));
+const queueStatus = v.union(v.literal("queued"), v.literal("assigned"), v.literal("in_progress"), v.literal("handoff"), v.literal("done"), v.literal("blocked"));
 
 export default defineSchema({
   tasks: defineTable({
@@ -246,5 +247,32 @@ export default defineSchema({
     updatedAt: v.number()
   })
     .index("by_taskId", ["taskId"])
-    .index("by_updatedAt", ["updatedAt"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  executionQueue: defineTable({
+    taskId: v.id("tasks"),
+    status: queueStatus,
+    assignedAgentKey: v.optional(v.string()),
+    priority: v.optional(v.string()),
+    requestedBy: v.string(),
+    handoffFrom: v.optional(v.string()),
+    handoffTo: v.optional(v.string()),
+    handoffNote: v.optional(v.string()),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index("by_taskId", ["taskId"])
+    .index("by_status", ["status"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  taskHandoffs: defineTable({
+    taskId: v.id("tasks"),
+    fromAgentKey: v.optional(v.string()),
+    toAgentKey: v.optional(v.string()),
+    note: v.string(),
+    createdBy: v.string(),
+    createdAt: v.number()
+  }).index("by_taskId", ["taskId"])
 });

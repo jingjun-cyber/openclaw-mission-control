@@ -16,7 +16,7 @@ type Form = {
   status: TaskStatus;
 };
 
-type TabKey = "overview" | "planning" | "evidence";
+type TabKey = "overview" | "planning" | "evidence" | "handoff";
 
 type ArtifactKind = "note" | "link" | "snippet" | "output";
 
@@ -57,8 +57,16 @@ export default function TaskDetailPage() {
   const task = useQuery(api.tasks.get, { taskId });
   const planningSession = useQuery(api.planning.getByTask, { taskId });
   const artifacts = useQuery(api.tasks.listArtifacts, { taskId });
+  const queueItem = useQuery(api.execution.getTaskQueue, { taskId });
+  const handoffs = useQuery(api.execution.listTaskHandoffs, { taskId });
   const updateTask = useMutation(api.tasks.update);
   const addArtifact = useMutation(api.tasks.addArtifact);
+  const enqueueTask = useMutation(api.execution.enqueueTask);
+  const assignTask = useMutation(api.execution.assignTask);
+  const startTask = useMutation(api.execution.startTask);
+  const handoffTask = useMutation(api.execution.handoffTask);
+  const completeTask = useMutation(api.execution.completeTask);
+  const blockTask = useMutation(api.execution.blockTask);
   const answerCurrent = useMutation(api.planning.answerCurrent);
   const skipCurrent = useMutation(api.planning.skipCurrent);
   const stopPlanning = useMutation(api.planning.stop);
@@ -73,6 +81,8 @@ export default function TaskDetailPage() {
   const [transitionForm, setTransitionForm] = useState<TransitionForm>({ owner: "", nextAction: "", notes: "" });
   const [artifactMessage, setArtifactMessage] = useState<string | null>(null);
   const [artifactForm, setArtifactForm] = useState<ArtifactForm>({ kind: "note", title: "", body: "", link: "", source: "" });
+  const [handoffTo, setHandoffTo] = useState("");
+  const [handoffNote, setHandoffNote] = useState("");
 
   useEffect(() => {
     if (!task) return;
@@ -234,6 +244,13 @@ export default function TaskDetailPage() {
             className={`rounded-full px-3 py-1 text-sm font-medium ${activeTab === "evidence" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
           >
             Evidence
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("handoff")}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${activeTab === "handoff" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
+          >
+            Handoff
           </button>
           <StagePill stage={(task.stage ?? "execution") as TaskStage} />
           {planningSession ? (
@@ -479,7 +496,7 @@ export default function TaskDetailPage() {
               </>
             ) : null}
           </div>
-        ) : (
+        ) : activeTab === "evidence" ? (
           <div className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
               <div className="space-y-3 rounded-xl border border-slate-200 p-4">
@@ -561,6 +578,77 @@ export default function TaskDetailPage() {
                     </div>
                   ))}
                   {artifacts?.length === 0 ? <p className="text-sm text-slate-500">No evidence artifacts yet.</p> : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+              <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Execution queue control</div>
+                  <p className="text-xs text-slate-600">Queue this task, assign it, start it, hand it off, block it, or complete it.</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  <div>Status: {queueItem?.status ?? "not queued"}</div>
+                  <div>Assigned: {queueItem?.assignedAgentKey ?? task.assignee ?? "unassigned"}</div>
+                  <div>Priority: {queueItem?.priority ?? task.priority ?? "n/a"}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {!queueItem ? <button type="button" className="rounded bg-slate-900 px-3 py-2 text-sm text-white" onClick={() => enqueueTask({ taskId, requestedBy: "MacBot", priority: task.priority })}>Enqueue</button> : null}
+                  {queueItem ? <button type="button" className="rounded border border-slate-300 px-3 py-2 text-sm" onClick={() => assignTask({ taskId, agentKey: handoffTo || task.assignee || "main" })}>Assign</button> : null}
+                  {queueItem ? <button type="button" className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" onClick={() => startTask({ taskId, agentKey: handoffTo || task.assignee || queueItem.assignedAgentKey || "main" })}>Start</button> : null}
+                  {queueItem ? <button type="button" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" onClick={() => blockTask({ taskId, note: handoffNote || "Blocked from task handoff tab" })}>Block</button> : null}
+                  {queueItem ? <button type="button" className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800" onClick={() => completeTask({ taskId, agentKey: queueItem.assignedAgentKey })}>Complete</button> : null}
+                </div>
+                <label className="space-y-1">
+                  <span className="text-sm">Assign / handoff to agent key</span>
+                  <input value={handoffTo} onChange={(e)=>setHandoffTo(e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2" placeholder="main, claude, codex..." />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Handoff note</span>
+                  <textarea value={handoffNote} onChange={(e)=>setHandoffNote(e.target.value)} className="h-28 w-full rounded border border-slate-300 px-3 py-2" placeholder="What changed, what remains, what to verify" />
+                </label>
+                <button
+                  type="button"
+                  className="rounded border border-purple-200 bg-purple-50 px-3 py-2 text-sm text-purple-800 disabled:bg-slate-100"
+                  disabled={!queueItem || !handoffNote.trim()}
+                  onClick={async () => {
+                    await handoffTask({
+                      taskId,
+                      fromAgentKey: queueItem?.assignedAgentKey,
+                      toAgentKey: handoffTo.trim() || undefined,
+                      note: handoffNote.trim(),
+                      createdBy: "MacBot"
+                    });
+                    setHandoffNote("");
+                  }}
+                >
+                  Record handoff
+                </button>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Handoff thread</div>
+                    <p className="text-xs text-slate-600">Structured handoff history for agent-to-agent work transfer.</p>
+                  </div>
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">{handoffs?.length ?? 0} entries</div>
+                </div>
+                <div className="space-y-3">
+                  {handoffs?.map((item: any) => (
+                    <div key={item._id} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>{new Date(item.createdAt).toLocaleString()}</span>
+                        <span>{item.fromAgentKey ?? "unassigned"} → {item.toAgentKey ?? "unassigned"}</span>
+                        <span>by {item.createdBy}</span>
+                      </div>
+                      <div className="mt-2 text-sm text-slate-800 whitespace-pre-wrap">{item.note}</div>
+                    </div>
+                  ))}
+                  {handoffs?.length === 0 ? <p className="text-sm text-slate-500">No handoff records yet.</p> : null}
                 </div>
               </div>
             </div>

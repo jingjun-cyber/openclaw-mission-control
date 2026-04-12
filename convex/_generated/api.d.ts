@@ -11,6 +11,7 @@
 import type * as approvals from "../approvals.js";
 import type * as calendar from "../calendar.js";
 import type * as content from "../content.js";
+import type * as execution from "../execution.js";
 import type * as incidents from "../incidents.js";
 import type * as memory from "../memory.js";
 import type * as office from "../office.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   approvals: typeof approvals;
   calendar: typeof calendar;
   content: typeof content;
+  execution: typeof execution;
   incidents: typeof incidents;
   memory: typeof memory;
   office: typeof office;
