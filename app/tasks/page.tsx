@@ -81,6 +81,9 @@ export default function TasksPage() {
   };
 
   const total = filtered.length;
+  const executionReadyCount = filtered.filter((task: any) => task.stage === "execution" && task.status !== "Done").length;
+  const planningCount = filtered.filter((task: any) => task.stage === "planning" && task.status !== "Done").length;
+  const completedCount = grouped.Done.length;
 
   return (
     <div className="space-y-5">
@@ -89,6 +92,13 @@ export default function TasksPage() {
         subtitle={total ? `${total} tasks • search + quick move` : "Kanban board for work execution"}
         action={<div className="flex items-center gap-2"><Badge>Backlog {grouped.Backlog.length}</Badge><Badge>Doing {grouped.Doing.length}</Badge><Badge>Review {grouped.Review.length}</Badge><Badge>Done {grouped.Done.length}</Badge></div>}
       />
+
+      <section className="grid gap-3 md:grid-cols-4">
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Total</div><div className="mt-2 text-2xl font-semibold text-slate-900">{total}</div><div className="mt-1 text-xs text-slate-500">Tasks in current filtered view</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Planning</div><div className="mt-2 text-2xl font-semibold text-amber-700">{planningCount}</div><div className="mt-1 text-xs text-slate-500">Tasks still shaping scope or answers</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Execution-ready</div><div className="mt-2 text-2xl font-semibold text-emerald-700">{executionReadyCount}</div><div className="mt-1 text-xs text-slate-500">Tasks already moved into execution stage</div></Card>
+        <Card><div className="text-xs uppercase tracking-wide text-slate-500">Completed</div><div className="mt-2 text-2xl font-semibold text-blue-700">{completedCount}</div><div className="mt-1 text-xs text-slate-500">Done tasks visible on the board</div></Card>
+      </section>
 
       <Card>
         <div className="grid gap-2 md:grid-cols-[2fr_1fr_auto]">
@@ -159,6 +169,11 @@ export default function TasksPage() {
                       <p className="mt-2 line-clamp-2 text-xs text-slate-600">{task.description}</p>
                     ) : null}
 
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                      <span>Updated: {task.updatedAt ? new Date(task.updatedAt).toLocaleString() : "unknown"}</span>
+                      {task.stage === "execution" ? <span>Execution-ready</span> : <span>Needs planning</span>}
+                    </div>
+
                     <div className="mt-3 flex flex-wrap gap-2 opacity-0 transition group-hover:opacity-100">
                       <button
                         type="button"
@@ -168,6 +183,9 @@ export default function TasksPage() {
                       >
                         Prev
                       </button>
+                      <Link href={`/tasks/${task._id}`} className="rounded border border-slate-300 px-2 py-1 text-xs">
+                        Open
+                      </Link>
                       <button
                         type="button"
                         onClick={() => shift(task._id, task.status as TaskStatus, 1)}

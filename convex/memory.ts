@@ -14,6 +14,33 @@ export const get = query({
   handler: async (ctx, args) => await ctx.db.get(args.docId)
 });
 
+export const health = query({
+  args: {},
+  handler: async (ctx) => {
+    const docs = await ctx.db.query("memoryDocs").collect();
+    const now = Date.now();
+    const totalDocs = docs.length;
+    const withContent = docs.filter((doc) => doc.content.trim().length > 0).length;
+    const searchableDocs = withContent;
+    const withoutContent = totalDocs - withContent;
+    const latestUpdatedAt = docs.reduce((max, doc) => Math.max(max, doc.updatedAt ?? 0), 0);
+    const latestSourceUpdatedAt = docs.reduce((max, doc) => Math.max(max, doc.sourceUpdatedAt ?? 0), 0);
+    const staleThresholdMs = 1000 * 60 * 60 * 24 * 7;
+    const staleDocs = docs.filter((doc) => now - (doc.sourceUpdatedAt ?? doc.updatedAt ?? 0) > staleThresholdMs).length;
+
+    return {
+      totalDocs,
+      searchableDocs,
+      withoutContent,
+      staleDocs,
+      latestUpdatedAt: latestUpdatedAt || null,
+      latestSourceUpdatedAt: latestSourceUpdatedAt || null,
+      searchReady: searchableDocs > 0,
+      freshnessState: staleDocs > 0 ? (staleDocs === totalDocs ? "stale" : "mixed") : "fresh"
+    };
+  }
+});
+
 export const search = query({
   args: { query: v.string() },
   handler: async (ctx, args) => {
