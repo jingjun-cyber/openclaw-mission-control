@@ -16,6 +16,7 @@ const links = [
   { href: "/sync", label: "Sync" },
   { href: "/connectors", label: "Connectors" },
   { href: "/usage", label: "Usage" },
+  { href: "/approvals", label: "Approvals" },
   { href: "/incidents", label: "Incidents" }
 ];
 

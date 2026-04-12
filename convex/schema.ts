@@ -27,6 +27,12 @@ const contentStage = v.union(
 );
 
 const presence = v.union(v.literal("idle"), v.literal("working"), v.literal("away"), v.literal("error"));
+const approvalStatus = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected"),
+  v.literal("executed")
+);
 
 export default defineSchema({
   tasks: defineTable({
@@ -201,5 +207,29 @@ export default defineSchema({
     presence,
     note: v.optional(v.string()),
     createdAt: v.number()
-  }).index("by_desk", ["deskCode"])
+  }).index("by_desk", ["deskCode"]),
+
+  approvals: defineTable({
+    title: v.string(),
+    actionType: v.string(),
+    targetType: v.string(),
+    targetLabel: v.string(),
+    rationale: v.string(),
+    requestedBy: v.string(),
+    status: approvalStatus,
+    riskLevel: v.string(),
+    dryRunSummary: v.optional(v.string()),
+    executionSummary: v.optional(v.string()),
+    approvedBy: v.optional(v.string()),
+    rejectedBy: v.optional(v.string()),
+    rejectedReason: v.optional(v.string()),
+    executedBy: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
+    rejectedAt: v.optional(v.number()),
+    executedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index("by_status", ["status"])
+    .index("by_updatedAt", ["updatedAt"])
 });
