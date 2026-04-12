@@ -22,9 +22,11 @@ export default function CalendarPage() {
   const byDate = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const event of monthEvents ?? []) {
-      const arr = map.get(event.date) ?? [];
+      const dateKey = event.date ?? "";
+      if (!dateKey) continue;
+      const arr = map.get(dateKey) ?? [];
       arr.push(event);
-      map.set(event.date, arr);
+      map.set(dateKey, arr);
     }
     return map;
   }, [monthEvents]);

@@ -29,7 +29,7 @@ export const listMonth = query({
         updatedAt: task.updatedAt,
         source: "task"
       }));
-    return [...monthEvents, ...taskMilestones].sort((a, b) => a.date.localeCompare(b.date));
+    return [...monthEvents, ...taskMilestones].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
   }
 });
 
